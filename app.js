@@ -90,37 +90,156 @@
     if (top) closeWindow(top[0]);
   });
 
-  /* ---------- Desktop icons ---------- */
+  /* ---------- Desktop folders ---------- */
   const iconsEl = document.getElementById("icons");
-  const ordered = [...P.videos.filter((v) => !v.short), ...P.videos.filter((v) => v.short)];
+  const folderSVG = `<svg class="folder-svg" viewBox="0 0 64 50" aria-hidden="true">
+    <path d="M3 7a4 4 0 0 1 4-4h15.5a4 4 0 0 1 2.9 1.2L29 8h28a4 4 0 0 1 4 4v4H3z" fill="#4c9fe0"/>
+    <rect x="3" y="12" width="58" height="35" rx="4" fill="#6fb8f2"/>
+    <rect x="3" y="12" width="58" height="2" rx="1" fill="#a3d3fa"/>
+  </svg>`;
 
-  ordered.forEach((v) => {
-    const el = document.createElement("button");
-    el.className = "icon" + (v.short ? " short" : "");
-    el.setAttribute("role", "listitem");
-    el.title = v.title;
-    const thumb = v.short
-      ? `https://i.ytimg.com/vi/${v.id}/oar2.jpg`
-      : `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`;
-    el.innerHTML = `<span class="thumb"><img src="${thumb}" alt="" loading="lazy"></span><span class="label">${esc(v.title)}</span>`;
-    const open = () => openVideo(v);
+  const videosIn = (folderId) => P.videos.filter((v) => v.folder === folderId);
+  const thumbFor = (v) => `https://i.ytimg.com/vi/${v.id}/${v.short ? "oar2" : "hqdefault"}.jpg`;
+
+  // Click selects, double-click (or tap on touch, Enter on keyboard) opens.
+  function bindOpen(el, group, open) {
     el.addEventListener("click", (e) => {
       e.stopPropagation();
-      select(el);
+      group.querySelectorAll(".selected").forEach((s) => s.classList.remove("selected"));
+      el.classList.add("selected");
       if (isTouch) open();
     });
     el.addEventListener("dblclick", open);
     el.addEventListener("keydown", (e) => e.key === "Enter" && (e.preventDefault(), open()));
+  }
+
+  P.folders.forEach((f) => {
+    const el = document.createElement("button");
+    el.className = "icon folder";
+    el.setAttribute("role", "listitem");
+    el.title = f.name;
+    el.innerHTML = `<span class="thumb">${folderSVG}</span><span class="label">${esc(f.name)}</span>`;
+    bindOpen(el, iconsEl, () => openFinder(f.id));
     iconsEl.appendChild(el);
   });
 
-  function select(el) {
-    iconsEl.querySelectorAll(".selected").forEach((s) => s.classList.remove("selected"));
-    el?.classList.add("selected");
-  }
   document.getElementById("desktop").addEventListener("click", (e) => {
-    if (e.target.id === "desktop" || e.target.id === "icons") select(null);
+    if (e.target.id === "desktop" || e.target.id === "icons")
+      iconsEl.querySelectorAll(".selected").forEach((s) => s.classList.remove("selected"));
   });
+
+  /* ---------- Finder ---------- */
+  let finderView = "icons";
+  try { finderView = localStorage.getItem("finderView") || "icons"; } catch {}
+
+  function openFinder(folderId) {
+    const existing = windows.get("finder");
+    if (existing) {
+      existing._navigate(folderId, true);
+      return focus(existing);
+    }
+    openWindow("finder", {
+      title: "",
+      width: 760,
+      height: 480,
+      render(c) {
+        c.innerHTML = `
+          <div class="finder">
+            <aside class="finder-side">
+              <div class="finder-side-head">Favorites</div>
+              ${P.folders.map((f) => `
+                <button class="finder-side-item" data-folder="${f.id}">
+                  ${folderSVG}<span>${esc(f.name)}</span>
+                </button>`).join("")}
+            </aside>
+            <section class="finder-main">
+              <div class="finder-toolbar">
+                <div class="seg">
+                  <button class="tb-btn" data-nav="back" aria-label="Back">‹</button>
+                  <button class="tb-btn" data-nav="fwd" aria-label="Forward">›</button>
+                </div>
+                <h3 class="finder-title"></h3>
+                <div class="seg" role="group" aria-label="View">
+                  <button class="tb-btn" data-view="icons" aria-label="Icon view">
+                    <svg viewBox="0 0 16 16"><g fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.2"/><rect x="9" y="1" width="6" height="6" rx="1.2"/><rect x="1" y="9" width="6" height="6" rx="1.2"/><rect x="9" y="9" width="6" height="6" rx="1.2"/></g></svg>
+                  </button>
+                  <button class="tb-btn" data-view="list" aria-label="List view">
+                    <svg viewBox="0 0 16 16"><g fill="currentColor"><rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="7" width="14" height="2" rx="1"/><rect x="1" y="12" width="14" height="2" rx="1"/></g></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="finder-items"></div>
+              <div class="finder-status"></div>
+            </section>
+          </div>`;
+      },
+    });
+
+    const win = windows.get("finder");
+    const items = win.querySelector(".finder-items");
+    const status = win.querySelector(".finder-status");
+    const back = win.querySelector('[data-nav="back"]');
+    const fwd = win.querySelector('[data-nav="fwd"]');
+    const hist = [];
+    let pos = -1;
+
+    function show(folderId) {
+      const f = P.folders.find((x) => x.id === folderId) || P.folders[0];
+      const vids = videosIn(f.id);
+      win.querySelector(".title").textContent = f.name;
+      win.querySelector(".finder-title").textContent = f.name;
+      win.setAttribute("aria-label", f.name);
+      win.querySelectorAll("[data-folder]").forEach((b) => b.classList.toggle("active", b.dataset.folder === f.id));
+      win.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.view === finderView));
+      back.disabled = pos <= 0;
+      fwd.disabled = pos >= hist.length - 1;
+      status.textContent = `${vids.length} item${vids.length === 1 ? "" : "s"}`;
+      history.replaceState(null, "", "#" + f.id);
+
+      items.className = "finder-items view-" + finderView;
+      items.scrollTop = 0;
+      if (!vids.length) {
+        items.innerHTML = `<div class="finder-empty">This folder is empty</div>`;
+        return;
+      }
+      items.innerHTML = finderView === "list"
+        ? `<div class="list-head"><span>Name</span><span>Kind</span></div>`
+        : "";
+      vids.forEach((v) => {
+        const el = document.createElement("button");
+        el.className = "f-item" + (v.short ? " short" : "");
+        el.title = v.title;
+        el.innerHTML = finderView === "list"
+          ? `<span class="f-name"><img src="${thumbFor(v)}" alt="" loading="lazy">${esc(v.title)}</span><span class="f-kind">${v.short ? "YouTube Short" : "YouTube Video"}</span>`
+          : `<span class="f-thumb"><img src="${thumbFor(v)}" alt="" loading="lazy"></span><span class="f-label">${esc(v.title)}</span>`;
+        bindOpen(el, items, () => openVideo(v));
+        items.appendChild(el);
+      });
+    }
+
+    win._navigate = (folderId, push) => {
+      if (push) {
+        if (hist[pos] === folderId) return show(folderId);
+        hist.splice(pos + 1);
+        hist.push(folderId);
+        pos = hist.length - 1;
+      }
+      show(folderId);
+    };
+    back.onclick = () => pos > 0 && win._navigate(hist[--pos]);
+    fwd.onclick = () => pos < hist.length - 1 && win._navigate(hist[++pos]);
+    win.querySelectorAll("[data-folder]").forEach((b) => (b.onclick = () => win._navigate(b.dataset.folder, true)));
+    win.querySelectorAll("[data-view]").forEach((b) => (b.onclick = () => {
+      finderView = b.dataset.view;
+      try { localStorage.setItem("finderView", finderView); } catch {}
+      show(hist[pos]);
+    }));
+    items.addEventListener("click", (e) => {
+      if (e.target === items) items.querySelectorAll(".selected").forEach((s) => s.classList.remove("selected"));
+    });
+
+    win._navigate(folderId, true);
+  }
 
   function openVideo(v) {
     const vh = innerHeight - 140;
@@ -263,8 +382,15 @@
     setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true)
   );
 
-  // Deep links: #about, #cv, #contact
-  const hash = location.hash.slice(1);
-  if (hash === "about" || hash === "cv") openNotes(hash);
-  else if (hash === "contact") openMail();
+  // Deep links: #about, #cv, #contact, or a folder id like #long-form
+  function openFromHash() {
+    const hash = location.hash.slice(1);
+    if (hash === "about" || hash === "cv") {
+      const notes = windows.get("notes");
+      notes ? (notes.querySelector(`[data-tab="${hash}"]`).click(), focus(notes)) : openNotes(hash);
+    } else if (hash === "contact") openMail();
+    else if (P.folders.some((f) => f.id === hash)) openFinder(hash);
+  }
+  openFromHash();
+  addEventListener("hashchange", openFromHash);
 })();

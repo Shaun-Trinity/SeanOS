@@ -2,14 +2,16 @@
 
 A self-hosted, macOS-desktop-style video portfolio. Plain HTML/CSS/JS, no build step.
 
-- **Desktop icons** — each video. Double-click (or tap on mobile, Enter on keyboard) to play in a window.
+- **Desktop folders** — Short-form Videos, Long-form Videos, Case Studies, Passion Projects. Double-click
+  (tap on mobile, Enter on keyboard) to open a Finder-style window with icon/list views and back/forward;
+  double-click a video to play it.
 - **Dock** — DaVinci Resolve, CapCut, Notes (About me / CV), Mail (contact), LinkedIn.
 - Windows drag by the title bar, red light closes, green zooms, Esc closes the top one.
-- Deep links: `/#about`, `/#cv`, `/#contact`.
+- Deep links: `/#about`, `/#cv`, `/#contact`, or a folder: `/#short-form`, `/#long-form`, `/#case-studies`, `/#passion-projects`.
 
 ## Edit content
-Everything is in `data.js` — bio, roles, experience, contact details, and the video list
-(`id` = YouTube video id, `short: true` for Shorts).
+Everything is in `data.js` — bio, roles, experience, contact details, the folder list, and the video list
+(`id` = YouTube video id, `short: true` for Shorts, `folder` = which folder it appears in).
 
 ## Custom wallpaper
 Drop an image at `assets/wallpaper.jpg`. Without it, a painted CSS landscape is used.

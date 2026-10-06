@@ -19,15 +19,24 @@ window.PORTFOLIO = {
   phone: "+27683648494",
   linkedin: "https://linkedin.com/in/sean-sesing",
 
-  // `id` is the YouTube video id. `short: true` renders a vertical (9:16) icon and player.
+  // Desktop folders, in display order. Each video below names the folder it lives in.
+  folders: [
+    { id: "short-form", name: "Short-form Videos" },
+    { id: "long-form", name: "Long-form Videos" },
+    { id: "case-studies", name: "Case Studies" },
+    { id: "passion-projects", name: "Passion Projects" },
+  ],
+
+  // `id` is the YouTube video id. `short: true` renders a vertical (9:16) thumbnail and player.
+  // `folder` is one of the folder ids above.
   videos: [
-    { id: "g_2KfJXox1E", title: "Amarula is African Excellence in Action" },
-    { id: "0Y-gBZg5nvs", title: "SunGereza x Absa SA" },
-    { id: "dPDELgZwefg", title: "Built for Brave" },
-    { id: "iYEI_2HUkTY", title: "It's the best school you could choose for your child!" },
-    { id: "OiT6E_HrNhQ", title: "Grace Trinity School for Girls" },
-    { id: "_4m_LQTcP2g", title: "This is Wits" },
-    { id: "AYfg70sGQ34", title: "Thank You, INDIA! You Rock!", short: true },
-    { id: "4n7jGLQ-Tt0", title: "I Finally Understood HOW BIG the Congo is...", short: true },
+    { id: "g_2KfJXox1E", title: "Amarula is African Excellence in Action", folder: "long-form" },
+    { id: "0Y-gBZg5nvs", title: "SunGereza x Absa SA", folder: "long-form" },
+    { id: "dPDELgZwefg", title: "Built for Brave", folder: "long-form" },
+    { id: "iYEI_2HUkTY", title: "It's the best school you could choose for your child!", folder: "long-form" },
+    { id: "OiT6E_HrNhQ", title: "Grace Trinity School for Girls", folder: "long-form" },
+    { id: "_4m_LQTcP2g", title: "This is Wits", folder: "long-form" },
+    { id: "AYfg70sGQ34", title: "Thank You, INDIA! You Rock!", short: true, folder: "short-form" },
+    { id: "4n7jGLQ-Tt0", title: "I Finally Understood HOW BIG the Congo is...", short: true, folder: "short-form" },
   ],
 };
