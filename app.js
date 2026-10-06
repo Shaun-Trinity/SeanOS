@@ -10,9 +10,6 @@
 
   document.getElementById("dock-linkedin").href = P.linkedin;
 
-  // Apple devices can render the Apple logo glyph from the system font.
-  if (/Mac|iPhone|iPad|iPod/.test(navigator.userAgent)) document.documentElement.classList.add("apple");
-
   /* ---------- Window manager ---------- */
   function focus(win) {
     windows.forEach((w) => w.classList.remove("focused"));
@@ -98,6 +95,8 @@
     <rect x="3" y="12" width="58" height="2" rx="1" fill="#a3d3fa"/>
   </svg>`;
 
+  // A folder's own artwork when it has one, otherwise the generic drawn folder.
+  const folderIcon = (f) => f.icon ? `<img class="folder-img" src="${esc(f.icon)}" alt="">` : folderSVG;
   const videosIn = (folderId) => P.videos.filter((v) => v.folder === folderId);
   const thumbFor = (v) => `https://i.ytimg.com/vi/${v.id}/${v.short ? "oar2" : "hqdefault"}.jpg`;
 
@@ -118,7 +117,7 @@
     el.className = "icon folder";
     el.setAttribute("role", "listitem");
     el.title = f.name;
-    el.innerHTML = `<span class="thumb">${folderSVG}</span><span class="label">${esc(f.name)}</span>`;
+    el.innerHTML = `<span class="thumb">${folderIcon(f)}</span><span class="label">${esc(f.name)}</span>`;
     bindOpen(el, iconsEl, () => openFinder(f.id));
     iconsEl.appendChild(el);
   });
@@ -153,7 +152,7 @@
               <div class="finder-side-head">Favorites</div>
               ${P.folders.map((f) => `
                 <button class="finder-side-item" data-folder="${f.id}">
-                  ${folderSVG}<span>${esc(f.name)}</span>
+                  ${folderIcon(f)}<span>${esc(f.name)}</span>
                 </button>`).join("")}
             </aside>
             <section class="finder-main">

@@ -19,12 +19,12 @@ window.PORTFOLIO = {
   phone: "+27683648494",
   linkedin: "https://linkedin.com/in/sean-sesing",
 
-  // Desktop folders, in display order. Each video below names the folder it lives in.
+  // Desktop folders, in display order. `icon` is the folder artwork; each video below names its folder.
   folders: [
-    { id: "short-form", name: "Short-form Videos" },
-    { id: "long-form", name: "Long-form Videos" },
-    { id: "case-studies", name: "Case Studies" },
-    { id: "passion-projects", name: "Passion Projects" },
+    { id: "short-form", name: "Short-form Videos", icon: "assets/folders/short-form.png" },
+    { id: "long-form", name: "Long-form Videos", icon: "assets/folders/long-form.png" },
+    { id: "case-studies", name: "Case Studies", icon: "assets/folders/case-studies.png" },
+    { id: "passion-projects", name: "Passion Projects", icon: "assets/folders/passion-projects.png" },
   ],
 
   // `id` is the YouTube video id. `short: true` renders a vertical (9:16) thumbnail and player.
