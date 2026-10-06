@@ -1,5 +1,5 @@
 :root {
-  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
   --win-bg: rgba(255, 255, 255, 0.92);
   --win-side: rgba(240, 238, 236, 0.9);
   --win-border: rgba(0, 0, 0, 0.12);
@@ -7,6 +7,25 @@
   --muted: #6e6e73;
   --accent: #2f6fe4;
   --select: rgba(47, 111, 228, 0.9);
+  --menubar-h: 28px;
+  --menubar-fg: #fff;
+  --th-bg: rgba(246, 246, 246, 0.9);
+  --chip: rgba(0, 0, 0, 0.06);
+}
+
+/* Dark theme: toggled by the moon button (html[data-theme="dark"]). */
+:root[data-theme="dark"] {
+  --win-bg: rgba(36, 36, 40, 0.92);
+  --win-side: rgba(46, 46, 50, 0.9);
+  --win-border: rgba(255, 255, 255, 0.1);
+  --text: #f2f2f7;
+  --muted: #a1a1aa;
+  --accent: #5b9bff;
+  --th-bg: rgba(44, 44, 48, 0.95);
+  --chip: rgba(255, 255, 255, 0.1);
+}
+:root[data-theme="dark"] #desktop::before {
+  content: ""; position: fixed; inset: 0; background: rgba(8, 10, 30, 0.35); pointer-events: none;
 }
 
 * { box-sizing: border-box; }
@@ -27,8 +46,40 @@ body {
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 a { color: var(--accent); }
 
+/* ---------- Menu bar ---------- */
+#menubar {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--menubar-h);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 8px;
+  background: transparent;
+  color: var(--menubar-fg);
+  font-size: 13px;
+  text-shadow: 0 1px 2px rgba(0,0,0,.25);
+  z-index: 20000;
+  user-select: none; -webkit-user-select: none;
+}
+.menu-left, .menu-right { display: flex; align-items: center; height: 100%; }
+.menu-item {
+  display: flex; align-items: center; gap: 6px; height: 22px;
+  padding: 0 9px; border-radius: 5px; white-space: nowrap;
+}
+button.menu-item { transition: opacity .12s; }
+button.menu-item:hover { opacity: .75; }
+button.menu-item:focus { outline: none; }
+button.menu-item:focus-visible { text-decoration: underline; text-underline-offset: 4px; }
+.menu-logo svg { width: 16px; height: 16px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.2)); }
+/* The Apple glyph (U+F8FF) only exists in Apple's system fonts; elsewhere show the SeanOS mark. */
+.logo-apple { display: none; font-size: 16px; line-height: 1; transform: translateY(-1px); }
+:root.apple .logo-apple { display: block; }
+:root.apple .logo-fallback { display: none; }
+.menu-brand { font-weight: 700; }
+.menu-clock { font-variant-numeric: tabular-nums; }
+#theme-toggle svg { width: 15px; height: 15px; }
+#theme-toggle .i-sun, :root[data-theme="dark"] #theme-toggle .i-moon { display: none; }
+:root[data-theme="dark"] #theme-toggle .i-sun { display: block; }
+
 /* ---------- Desktop icons ---------- */
-#desktop { position: fixed; inset: 0; }
+#desktop { position: fixed; inset: var(--menubar-h) 0 0 0; }
 
 #icons {
   position: absolute;
@@ -135,7 +186,7 @@ a { color: var(--accent); }
 .titlebar {
   position: relative; display: flex; align-items: center;
   height: 38px; padding: 0 12px; flex: none;
-  background: rgba(246,246,246,.9);
+  background: var(--th-bg);
   border-bottom: 1px solid var(--win-border);
   cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none;
 }
@@ -179,10 +230,10 @@ a { color: var(--accent); }
   background: #e8b830; color: #fff; font-size: 10px; font-weight: 700;
 }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chips span { padding: 3px 10px; border-radius: 999px; background: rgba(0,0,0,.06); font-size: 12px; }
+.chips span { padding: 3px 10px; border-radius: 999px; background: var(--chip); font-size: 12px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { text-align: left; padding: 7px 10px; border: 1px solid var(--win-border); }
-th { background: rgba(0,0,0,.04); font-weight: 600; }
+th { background: var(--chip); font-weight: 600; }
 
 /* Mail window */
 .mail-app { padding: 18px 20px 20px; }
@@ -199,6 +250,8 @@ th { background: rgba(0,0,0,.04); font-weight: 600; }
 
 /* ---------- Small screens ---------- */
 @media (max-width: 640px) {
+  #menubar { padding: 0 4px; }
+  .menu-item { padding: 0 6px; }
   #icons { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, 84px); grid-template-rows: none; grid-auto-rows: 76px; right: 8px; overflow-y: auto; }
   .window { left: 8px !important; right: 8px; top: 8px !important; bottom: 84px; width: auto !important; height: auto !important; }
   .notes-app { flex-direction: column; }

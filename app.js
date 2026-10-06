@@ -10,6 +10,9 @@
 
   document.getElementById("dock-linkedin").href = P.linkedin;
 
+  // Apple devices can render the Apple logo glyph from the system font.
+  if (/Mac|iPhone|iPad|iPod/.test(navigator.userAgent)) document.documentElement.classList.add("apple");
+
   /* ---------- Window manager ---------- */
   function focus(win) {
     windows.forEach((w) => w.classList.remove("focused"));
@@ -25,7 +28,7 @@
     win.setAttribute("aria-label", title);
     render(win.querySelector(".content"));
 
-    const vw = innerWidth, vh = innerHeight - 90;
+    const vw = innerWidth, vh = innerHeight - 90 - 28; // dock + menu bar
     const w = Math.min(width, vw - 24), h = Math.min(height, vh - 24);
     const off = (cascade++ % 6) * 28;
     win.style.width = w + "px";
@@ -214,6 +217,50 @@
       if (windows.has(key)) return focus(windows.get(key));
       key === "notes" ? openNotes() : openMail();
     })
+  );
+
+  /* ---------- Menu bar ---------- */
+  document.querySelectorAll("[data-menu]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const m = b.dataset.menu;
+      if (m === "contact") return openMail();
+      const notes = windows.get("notes");
+      if (notes) {
+        notes.querySelector(`[data-tab="${m}"]`).click();
+        focus(notes);
+      } else openNotes(m);
+    })
+  );
+
+  const clock = document.getElementById("clock");
+  function renderClock() {
+    const now = new Date();
+    const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const day = now.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
+    clock.textContent = innerWidth > 640 ? `${day}  ${time}` : time; // date hidden on phones
+    clock.dateTime = now.toISOString();
+    return now;
+  }
+  (function tick() {
+    const now = renderClock();
+    setTimeout(tick, 60000 - (now.getSeconds() * 1000 + now.getMilliseconds())); // next minute boundary
+  })();
+  addEventListener("resize", renderClock);
+
+  // Theme: remembers the visitor's choice; otherwise follows their system setting.
+  const themeBtn = document.getElementById("theme-toggle");
+  function setTheme(theme, save) {
+    document.documentElement.dataset.theme = theme;
+    const dark = theme === "dark";
+    themeBtn.setAttribute("aria-pressed", dark);
+    themeBtn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+    if (save) try { localStorage.setItem("theme", theme); } catch {}
+  }
+  let saved = null;
+  try { saved = localStorage.getItem("theme"); } catch {}
+  setTheme(saved || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"), false);
+  themeBtn.addEventListener("click", () =>
+    setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true)
   );
 
   // Deep links: #about, #cv, #contact
