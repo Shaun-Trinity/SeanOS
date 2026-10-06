@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sean Sesing – Video Editor Portfolio</title>
+  <meta name="description" content="Sean Sesing — short-form video editor, color grader and creative director based in Johannesburg.">
+  <meta property="og:title" content="Sean Sesing – Video Editor Portfolio">
+  <meta property="og:description" content="Short and long form video for brands, creators and campaigns.">
+  <meta property="og:image" content="https://i.ytimg.com/vi/g_2KfJXox1E/maxresdefault.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="desktop" aria-label="Desktop">
+    <div id="icons" role="list"></div>
+  </main>
+
+  <nav id="dock" aria-label="Dock">
+    <a class="dock-item" href="https://www.blackmagicdesign.com/products/davinciresolve" target="_blank" rel="noopener" data-tip="DaVinci Resolve">
+      <span class="dock-icon resolve" aria-hidden="true"><i></i><i></i><i></i></span>
+    </a>
+    <a class="dock-item" href="https://www.capcut.com/" target="_blank" rel="noopener" data-tip="CapCut">
+      <span class="dock-icon capcut" aria-hidden="true">✂</span>
+    </a>
+    <span class="dock-sep"></span>
+    <button class="dock-item" data-open="notes" data-tip="About me">
+      <span class="dock-icon notes" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+    </button>
+    <button class="dock-item" data-open="mail" data-tip="Contact">
+      <span class="dock-icon mail" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18v12H3z" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 6l9 7 9-7" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      </span>
+    </button>
+    <span class="dock-sep"></span>
+    <a class="dock-item" id="dock-linkedin" target="_blank" rel="noopener" data-tip="LinkedIn">
+      <span class="dock-icon linkedin" aria-hidden="true">in</span>
+    </a>
+  </nav>
+
+  <template id="tpl-window">
+    <section class="window" role="dialog">
+      <header class="titlebar">
+        <div class="lights">
+          <button class="light close" aria-label="Close"></button>
+          <button class="light min" aria-label="Minimize"></button>
+          <button class="light max" aria-label="Zoom"></button>
+        </div>
+        <h2 class="title"></h2>
+      </header>
+      <div class="content"></div>
+    </section>
+  </template>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
