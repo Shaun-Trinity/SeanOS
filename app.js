@@ -132,13 +132,17 @@
   let finderView = "icons";
   try { finderView = localStorage.getItem("finderView") || "icons"; } catch {}
 
+  let finderCount = 0;
+
+  // One Finder window per folder opened from the desktop; reuse a window already showing it.
   function openFinder(folderId) {
-    const existing = windows.get("finder");
-    if (existing) {
-      existing._navigate(folderId, true);
-      return focus(existing);
+    for (const w of windows.values()) {
+      if (w._folder !== folderId) continue;
+      history.replaceState(null, "", "#" + folderId);
+      return focus(w);
     }
-    openWindow("finder", {
+    const key = "finder-" + ++finderCount;
+    openWindow(key, {
       title: "",
       width: 760,
       height: 480,
@@ -175,7 +179,7 @@
       },
     });
 
-    const win = windows.get("finder");
+    const win = windows.get(key);
     const items = win.querySelector(".finder-items");
     const status = win.querySelector(".finder-status");
     const back = win.querySelector('[data-nav="back"]');
@@ -189,6 +193,7 @@
       win.querySelector(".title").textContent = f.name;
       win.querySelector(".finder-title").textContent = f.name;
       win.setAttribute("aria-label", f.name);
+      win._folder = f.id;
       win.querySelectorAll("[data-folder]").forEach((b) => b.classList.toggle("active", b.dataset.folder === f.id));
       win.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.view === finderView));
       back.disabled = pos <= 0;
