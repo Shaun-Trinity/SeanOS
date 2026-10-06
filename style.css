@@ -145,17 +145,18 @@ button.menu-item:focus-visible { text-decoration: underline; text-underline-offs
   box-shadow: 0 2px 6px rgba(0,0,0,.25);
   font-weight: 700; color: #fff;
 }
-.dock-icon.resolve { background: linear-gradient(160deg, #3b3f4a, #15171c); position: relative; }
-.dock-icon.resolve i { position: absolute; width: 14px; height: 14px; border-radius: 50%; mix-blend-mode: screen; }
-.dock-icon.resolve i:nth-child(1) { background: #ff5a5a; transform: translate(-4px, -3px); }
-.dock-icon.resolve i:nth-child(2) { background: #43d17a; transform: translate(4px, -3px); }
-.dock-icon.resolve i:nth-child(3) { background: #4a8dff; transform: translate(0, 4px); }
-.dock-icon.capcut { background: #111; font-size: 22px; }
-.dock-icon.notes {
-  background: linear-gradient(#fbd54a 0 26%, #fffdf5 26%);
-  display: flex; flex-direction: column; justify-content: flex-end; gap: 5px; padding: 0 7px 8px;
-}
-.dock-icon.notes i { display: block; height: 1px; background: #d9d4c4; }
+/* Simple Icons brand marks (assets/icons) render white on the brand colour; full app icons override this below. */
+.dock-icon img { width: 26px; height: 26px; filter: brightness(0) invert(1); }
+/* Full macOS-style app icon (own tile, shadow and transparent margin), so no tile behind it. */
+.dock-icon.resolve { background: none; box-shadow: none; overflow: visible; }
+.dock-icon.resolve img { width: 100%; height: 100%; transform: scale(1.2); filter: none; } /* icon art has a transparent margin */
+.dock-icon.canva { overflow: hidden; }
+.dock-icon.canva img { width: 100%; height: 100%; object-fit: cover; filter: none; }
+/* The CapCut file is the full app icon (white tile included), so it fills the tile unfiltered. */
+.dock-icon.capcut { background: #fff; overflow: hidden; }
+.dock-icon.capcut img { width: 100%; height: 100%; filter: none; }
+.dock-icon.notes { background: #fff; overflow: hidden; }
+.dock-icon.notes img { width: 100%; height: 100%; filter: none; }
 .dock-icon.mail { background: linear-gradient(#5ab0ff, #1d74e8); }
 .dock-icon.mail svg { width: 28px; height: 28px; }
 .dock-icon.linkedin { background: #0a66c2; font-size: 22px; font-family: Arial, sans-serif; letter-spacing: -1px; }
