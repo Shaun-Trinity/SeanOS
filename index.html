@@ -11,6 +11,12 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Boot screen: shown once per browser session, removed by app.js -->
+  <div id="boot" aria-hidden="true">
+    <div class="boot-logo"></div>
+    <div class="boot-bar"><i></i></div>
+  </div>
+
   <header id="menubar">
     <nav class="menu-left" aria-label="Main menu">
       <button class="menu-item menu-logo" data-menu="about" aria-label="About SeanOS">

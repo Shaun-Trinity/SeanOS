@@ -7,10 +7,45 @@
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const isTouch = matchMedia("(hover: none)").matches;
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Remember what the visitor just activated so a window can grow out of it (genie effect).
+  let lastOrigin = null, lastOriginAt = 0;
+  ["pointerdown", "keydown"].forEach((type) =>
+    addEventListener(type, (e) => {
+      const o = e.target.closest?.(".icon, .f-item, .dock-item, .menu-item");
+      if (o) (lastOrigin = o), (lastOriginAt = performance.now());
+    }, true)
+  );
+  const takeOrigin = () => {
+    const o = performance.now() - lastOriginAt < 1500 ? lastOrigin : null;
+    lastOrigin = null;
+    return o;
+  };
 
   document.getElementById("dock-linkedin").href = P.linkedin;
 
   /* ---------- Window manager ---------- */
+  // Genie: the window stretches out of (or back into) the icon it was opened from.
+  function genie(win, origin, closing) {
+    if (reduceMotion || !origin?.isConnected || !origin.getClientRects().length) return null;
+    win.style.animation = "none"; // replace the default pop so it doesn't skew the measurement
+    const r = win.getBoundingClientRect(), o = origin.getBoundingClientRect();
+    const dx = o.left + o.width / 2 - (r.left + r.width / 2);
+    const dy = o.top + o.height / 2 - (r.top + r.height / 2);
+    const sx = Math.max(o.width / r.width, 0.02), sy = Math.max(o.height / r.height, 0.02);
+    const skew = Math.max(-12, Math.min(12, -dx / 40));
+    const frames = [
+      { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.2 },
+      { transform: `translate(${dx * 0.35}px, ${dy * 0.5}px) scale(${Math.max(sx, 0.45)}, ${Math.max(sy, 0.25)}) skewX(${skew}deg)`, opacity: 0.85, offset: 0.5 },
+      { transform: "none", opacity: 1 },
+    ];
+    return win.animate(closing ? frames.reverse() : frames, {
+      duration: closing ? 380 : 480,
+      easing: closing ? "cubic-bezier(.5,0,.75,0)" : "cubic-bezier(.2,.8,.2,1)",
+    });
+  }
+
   function focus(win) {
     windows.forEach((w) => w.classList.remove("focused"));
     win.classList.add("focused");
@@ -45,6 +80,8 @@
     if (dock) document.querySelector(`[data-open="${dock}"]`)?.classList.add("running");
     win._dock = dock;
     focus(win);
+    win._origin = takeOrigin();
+    genie(win, win._origin, false);
   }
 
   function closeWindow(key) {
@@ -52,6 +89,8 @@
     if (!win) return;
     windows.delete(key);
     if (win._dock) document.querySelector(`[data-open="${win._dock}"]`)?.classList.remove("running");
+    const anim = genie(win, win._origin, true);
+    if (anim) return void (anim.onfinish = () => win.remove());
     win.classList.add("closing");
     win.addEventListener("animationend", () => win.remove(), { once: true });
     setTimeout(() => win.remove(), 250); // in case animations are disabled
@@ -96,7 +135,7 @@
   </svg>`;
 
   // A folder's own artwork when it has one, otherwise the generic drawn folder.
-  const folderIcon = (f) => f.icon ? `<img class="folder-img" src="${esc(f.icon)}" alt="">` : folderSVG;
+  const folderIcon = (f) => f.icon ? `<img class="folder-img" src="${esc(f.icon)}" alt="" draggable="false">` : folderSVG;
   const videosIn = (folderId) => P.videos.filter((v) => v.folder === folderId);
   const thumbFor = (v) => `https://i.ytimg.com/vi/${v.id}/${v.short ? "oar2" : "hqdefault"}.jpg`;
 
@@ -104,6 +143,7 @@
   function bindOpen(el, group, open) {
     el.addEventListener("click", (e) => {
       e.stopPropagation();
+      if (el._suppressClick) return void (el._suppressClick = false); // the click that ended a drag
       group.querySelectorAll(".selected").forEach((s) => s.classList.remove("selected"));
       el.classList.add("selected");
       if (isTouch) open();
@@ -117,9 +157,82 @@
     el.className = "icon folder";
     el.setAttribute("role", "listitem");
     el.title = f.name;
+    el.dataset.id = f.id;
     el.innerHTML = `<span class="thumb">${folderIcon(f)}</span><span class="label">${esc(f.name)}</span>`;
     bindOpen(el, iconsEl, () => openFinder(f.id));
+    makeIconDraggable(el);
     iconsEl.appendChild(el);
+  });
+
+  /* ---------- Draggable desktop icons ---------- */
+  // Icons start in the grid; once laid out they're pinned with left/top so they can move freely.
+  // Positions are remembered per visitor. Phones and touch screens keep the plain grid.
+  const POS_KEY = "iconPositions";
+  let positions = {};
+  try { positions = JSON.parse(localStorage.getItem(POS_KEY)) || {}; } catch {}
+  const canDrag = () => !isTouch && innerWidth > 640;
+
+  function placeIcon(el, x, y) {
+    const maxX = iconsEl.clientWidth - el.offsetWidth, maxY = iconsEl.clientHeight - el.offsetHeight;
+    el.style.left = Math.max(0, Math.min(x, maxX)) + "px";
+    el.style.top = Math.max(0, Math.min(y, maxY)) + "px";
+  }
+
+  function layoutIcons() {
+    const icons = [...iconsEl.children];
+    iconsEl.classList.remove("free");
+    icons.forEach((el) => (el.style.left = el.style.top = ""));
+    if (!canDrag()) return;
+    const box = iconsEl.getBoundingClientRect();
+    const slots = icons.map((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left - box.left, y: r.top - box.top };
+    });
+    iconsEl.classList.add("free");
+    icons.forEach((el, i) => {
+      const p = positions[el.dataset.id] || slots[i];
+      placeIcon(el, p.x, p.y);
+    });
+  }
+
+  function makeIconDraggable(el) {
+    el.addEventListener("pointerdown", (e) => {
+      if (!canDrag() || e.button !== 0) return;
+      const startX = e.clientX, startY = e.clientY, ox = el.offsetLeft, oy = el.offsetTop;
+      let dragging = false;
+      const move = (ev) => {
+        const dx = ev.clientX - startX, dy = ev.clientY - startY;
+        if (!dragging) {
+          if (Math.hypot(dx, dy) < 4) return; // still a click, not a drag
+          dragging = true;
+          el.classList.add("dragging");
+        }
+        placeIcon(el, ox + dx, oy + dy);
+      };
+      // Listen on the window so the release is caught wherever it happens, and always clean up.
+      const end = () => {
+        removeEventListener("pointermove", move);
+        removeEventListener("pointerup", end);
+        removeEventListener("pointercancel", end);
+        if (!dragging) return;
+        el.classList.remove("dragging");
+        el.classList.add("dropped");
+        setTimeout(() => el.classList.remove("dropped"), 260);
+        el._suppressClick = true;
+        positions[el.dataset.id] = { x: el.offsetLeft, y: el.offsetTop };
+        try { localStorage.setItem(POS_KEY, JSON.stringify(positions)); } catch {}
+      };
+      addEventListener("pointermove", move);
+      addEventListener("pointerup", end);
+      addEventListener("pointercancel", end);
+    });
+  }
+
+  layoutIcons();
+  let relayout;
+  addEventListener("resize", () => {
+    clearTimeout(relayout);
+    relayout = setTimeout(layoutIcons, 150);
   });
 
   document.getElementById("desktop").addEventListener("click", (e) => {
@@ -395,6 +508,33 @@
     } else if (hash === "contact") openMail();
     else if (P.folders.some((f) => f.id === hash)) openFinder(hash);
   }
-  openFromHash();
-  addEventListener("hashchange", openFromHash);
+
+  /* ---------- Boot screen (once per browser session) ---------- */
+  function boot(done) {
+    const el = document.getElementById("boot");
+    let seen = false;
+    try { seen = sessionStorage.getItem("booted") === "1"; } catch {}
+    if (seen) return el.remove(), done();
+    try { sessionStorage.setItem("booted", "1"); } catch {}
+    el.querySelector(".boot-logo").appendChild(document.querySelector(".logo-seanos").cloneNode(true));
+    const total = reduceMotion ? 600 : 2200;
+    el.style.setProperty("--boot-ms", total + "ms");
+    el.classList.add("run");
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      el.classList.add("out");
+      setTimeout(() => (el.remove(), done()), 500);
+    };
+    const timer = setTimeout(finish, total);
+    el.addEventListener("click", finish); // click or any key skips it
+    addEventListener("keydown", finish, { once: true });
+  }
+
+  boot(() => {
+    openFromHash();
+    addEventListener("hashchange", openFromHash);
+  });
 })();
