@@ -32,13 +32,40 @@
         <svg class="i-moon" viewBox="0 0 20 20" aria-hidden="true"><path d="M16.5 12.6A7 7 0 0 1 7.4 3.5a7 7 0 1 0 9.1 9.1z" fill="currentColor"/></svg>
         <svg class="i-sun" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3.6" fill="currentColor"/><g stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 1.8v2M10 16.2v2M1.8 10h2M16.2 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/></g></svg>
       </button>
+      <button class="menu-item" id="cc-toggle" aria-label="Control Center" aria-expanded="false" aria-controls="control-center">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="16" height="6" rx="3"/><rect x="2" y="11" width="16" height="6" rx="3"/></g><circle cx="6" cy="6" r="1.8" fill="currentColor"/><circle cx="14" cy="14" r="1.8" fill="currentColor"/></svg>
+      </button>
       <time class="menu-item menu-clock" id="clock"></time>
     </div>
   </header>
 
+  <!-- Control Center: opened from the menu bar; room for widgets later -->
+  <div id="control-center" role="dialog" aria-label="Control Center" hidden>
+    <div class="cc-glass" aria-hidden="true"></div>
+    <div class="cc-content">
+      <section class="cc-tile">
+        <div class="cc-head"><label for="glass-slider">Transparency</label><output id="glass-value" for="glass-slider">50%</output></div>
+        <input type="range" class="cc-slider" id="glass-slider" min="0" max="100" step="1" value="50">
+      </section>
+    </div>
+  </div>
+
+  <!-- Lens filter for the Control Center glass; app.js draws the displacement map to fit the panel -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="cc-lens" x="0" y="0" width="100%" height="100%" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feImage id="cc-lens-map" x="0" y="0" result="map" preserveAspectRatio="none"/>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="0" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </svg>
+
   <main id="desktop" aria-label="Desktop">
     <div id="icons" role="list"></div>
   </main>
+
+  <!-- Desktop right-click menu -->
+  <div id="ctx-menu" role="menu" hidden>
+    <button role="menuitem" data-action="cleanup">Clean Up</button>
+  </div>
 
   <nav id="dock" aria-label="Dock">
     <a class="dock-item" href="https://www.blackmagicdesign.com/products/davinciresolve" target="_blank" rel="noopener" data-tip="DaVinci Resolve">

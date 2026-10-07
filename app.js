@@ -121,8 +121,8 @@
   }
 
   addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
-    const top = [...windows.entries()].sort((a, b) => b[1].style.zIndex - a[1].style.zIndex)[0];
+    if (e.key !== "Escape" || !document.getElementById("control-center").hidden) return; // Escape closes Control Center first
+    const top =[...windows.entries()].sort((a, b) => b[1].style.zIndex - a[1].style.zIndex)[0];
     if (top) closeWindow(top[0]);
   });
 
@@ -227,6 +227,46 @@
       addEventListener("pointercancel", end);
     });
   }
+
+  // Clean Up: forget the saved layout and slide every icon back to its grid slot.
+  function cleanUp() {
+    positions = {};
+    try { localStorage.removeItem(POS_KEY); } catch {}
+    const icons = [...iconsEl.children];
+    const from = icons.map((el) => ({ x: el.offsetLeft, y: el.offsetTop }));
+    layoutIcons(); // jumps to the default slots (same frame, so nothing flashes)
+    if (reduceMotion || !iconsEl.classList.contains("free")) return;
+    const to = icons.map((el) => ({ x: el.offsetLeft, y: el.offsetTop }));
+    icons.forEach((el, i) => ((el.style.left = from[i].x + "px"), (el.style.top = from[i].y + "px")));
+    iconsEl.offsetHeight; // commit the start positions before animating
+    iconsEl.classList.add("tidying");
+    icons.forEach((el, i) => ((el.style.left = to[i].x + "px"), (el.style.top = to[i].y + "px")));
+    setTimeout(() => iconsEl.classList.remove("tidying"), 450);
+  }
+
+  /* ---------- Desktop right-click menu ---------- */
+  const ctxMenu = document.getElementById("ctx-menu");
+  function hideMenu() { ctxMenu.hidden = true; }
+  document.getElementById("desktop").addEventListener("contextmenu", (e) => {
+    if (e.target.id !== "desktop" && e.target.id !== "icons") return; // only on empty desktop
+    if (!canDrag()) return;
+    e.preventDefault();
+    ctxMenu.hidden = false;
+    const x = Math.min(e.clientX, innerWidth - ctxMenu.offsetWidth - 6);
+    const y = Math.min(e.clientY, innerHeight - ctxMenu.offsetHeight - 6);
+    ctxMenu.style.left = x + "px";
+    ctxMenu.style.top = y + "px";
+    ctxMenu.querySelector("button").focus({ preventScroll: true });
+  });
+  ctxMenu.addEventListener("click", (e) => {
+    const action = e.target.closest("[data-action]")?.dataset.action;
+    hideMenu();
+    if (action === "cleanup") cleanUp();
+  });
+  addEventListener("pointerdown", (e) => { if (!ctxMenu.contains(e.target)) hideMenu(); }, true);
+  addEventListener("keydown", (e) => { if (e.key === "Escape") hideMenu(); });
+  addEventListener("blur", hideMenu);
+  addEventListener("resize", hideMenu);
 
   layoutIcons();
   let relayout;
@@ -472,7 +512,7 @@
   function renderClock() {
     const now = new Date();
     const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const day = now.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
+    const day = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }); // "Wednesday 7 October"
     clock.textContent = innerWidth > 640 ? `${day}  ${time}` : time; // date hidden on phones
     clock.dateTime = now.toISOString();
     return now;
@@ -482,6 +522,154 @@
     setTimeout(tick, 60000 - (now.getSeconds() * 1000 + now.getMilliseconds())); // next minute boundary
   })();
   addEventListener("resize", renderClock);
+
+  /* ---------- Control Center (transparency slider) ---------- */
+  const ccBtn = document.getElementById("cc-toggle");
+  const cc = document.getElementById("control-center");
+  const glassSlider = document.getElementById("glass-slider");
+  const glassValue = document.getElementById("glass-value");
+
+  // 0% = nearly solid windows (the original look), 100% = very clear glass.
+  function setGlass(pct, save) {
+    pct = Math.max(0, Math.min(100, Math.round(pct)));
+    document.documentElement.style.setProperty("--glass-alpha", (0.92 - (pct / 100) * 0.8).toFixed(3));
+    glassSlider.value = pct;
+    glassSlider.style.setProperty("--fill", pct + "%");
+    glassValue.textContent = pct + "%";
+    if (save) try { localStorage.setItem("glass", pct); } catch {}
+  }
+  let savedGlass = null;
+  try { savedGlass = localStorage.getItem("glass"); } catch {}
+  setGlass(savedGlass === null ? 50 : Number(savedGlass), false);
+  glassSlider.addEventListener("input", () => setGlass(glassSlider.value, true));
+
+  // Lens map for the glass edges: a displacement image whose red/green channels push the backdrop
+  // inward near the rim, so the wallpaper bends at the edges like light through thick glass.
+  const lensOK = !!navigator.userAgentData?.brands?.some((b) => /Chromium/i.test(b.brand)); // url() in backdrop-filter
+  const lensMap = document.getElementById("cc-lens-map");
+  const lensDisp = document.querySelector("#cc-lens feDisplacementMap");
+  const LENS_SCALE = 36;
+  let lensSize = "";
+  if (lensOK) cc.classList.add("lens");
+
+  function drawLens(w, h, r = 22, band = 20) {
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const g = c.getContext("2d"), img = g.createImageData(w, h), d = img.data;
+    const hw = w / 2, hh = h / 2;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        // Signed distance to the rounded rectangle (negative inside) and its outward normal.
+        const px = x + 0.5 - hw, py = y + 0.5 - hh;
+        const qx = Math.abs(px) - (hw - r), qy = Math.abs(py) - (hh - r);
+        const depth = -(Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r);
+        let dx = 0, dy = 0;
+        if (depth > 0 && depth < band) {
+          const m = (1 - depth / band) ** 2;
+          let nx, ny;
+          if (qx > 0 && qy > 0) { const l = Math.hypot(qx, qy); nx = qx / l; ny = qy / l; }
+          else if (qx > qy) { nx = 1; ny = 0; } else { nx = 0; ny = 1; }
+          dx = -nx * Math.sign(px || 1) * m;
+          dy = -ny * Math.sign(py || 1) * m;
+        }
+        const i = (y * w + x) * 4;
+        d[i] = 128 + dx * 127; d[i + 1] = 128 + dy * 127; d[i + 2] = 128; d[i + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    return c.toDataURL();
+  }
+
+  function fitLens() {
+    const w = cc.offsetWidth, h = cc.offsetHeight, key = w + "x" + h;
+    if (!lensOK || key === lensSize) return;
+    lensSize = key;
+    const url = drawLens(w, h);
+    lensMap.setAttribute("href", url);
+    lensMap.setAttributeNS("http://www.w3.org/1999/xlink", "href", url);
+    for (const el of [lensMap, lensMap.parentElement]) {
+      el.setAttribute("width", w);
+      el.setAttribute("height", h);
+    }
+  }
+
+  // Glass materialises by ramping its light-bending, not just its opacity.
+  function rampLens(from, to, ms) {
+    if (!lensOK) return;
+    const t0 = performance.now();
+    (function step(now) {
+      const k = Math.min(1, (now - t0) / ms), e = 1 - (1 - k) ** 3;
+      lensDisp.setAttribute("scale", (from + (to - from) * e).toFixed(1));
+      if (k < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+
+  // Control Center morphs out of its menu-bar button (and back into it), with a springy settle.
+  let ccAnim = null;
+  function toggleCC(open = cc.hidden) {
+    if (open === !cc.hidden && !ccAnim) return;
+    ccAnim?.cancel();
+    ccBtn.setAttribute("aria-expanded", open);
+    if (open) cc.hidden = false;
+    fitLens();
+    if (reduceMotion) {
+      cc.hidden = !open;
+      lensDisp?.setAttribute("scale", LENS_SCALE);
+      if (open) glassSlider.focus({ preventScroll: true });
+      return;
+    }
+    const p = cc.getBoundingClientRect(), b = ccBtn.getBoundingClientRect();
+    const fromBtn = `translate(${b.left - p.left}px, ${b.top - p.top}px) scale(${b.width / p.width}, ${b.height / p.height})`;
+    const spring = getComputedStyle(document.documentElement).getPropertyValue("--spring").trim();
+    const frames = [
+      { transform: fromBtn, borderRadius: "999px", opacity: 0.4 },
+      { transform: "none", borderRadius: "22px", opacity: 1 },
+    ];
+    if (open) {
+      ccAnim = cc.animate(frames, { duration: 560, easing: spring });
+      cc.querySelector(".cc-content").animate(
+        [{ opacity: 0, transform: "translateY(-6px) scale(.97)" }, { opacity: 1, transform: "none" }],
+        { duration: 300, delay: 140, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" }
+      );
+      rampLens(LENS_SCALE * 2.5, LENS_SCALE, 480);
+      glassSlider.focus({ preventScroll: true });
+    } else {
+      ccAnim = cc.animate(frames.reverse(), { duration: 240, easing: "cubic-bezier(.4,0,1,1)" });
+      rampLens(LENS_SCALE, LENS_SCALE * 2.5, 220);
+    }
+    ccAnim.onfinish = () => {
+      ccAnim = null;
+      if (!open) cc.hidden = true;
+    };
+  }
+
+  ccBtn.addEventListener("click", () => toggleCC());
+  addEventListener("pointerdown", (e) => {
+    if (!cc.hidden && !cc.contains(e.target) && !ccBtn.contains(e.target)) toggleCC(false);
+  }, true);
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && !cc.hidden) toggleCC(false); });
+
+  /* ---------- Glass light & scroll edges ---------- */
+  // The rim highlight on glass surfaces tracks the pointer, like light catching the edge.
+  let lightFrame = 0;
+  addEventListener("pointermove", (e) => {
+    if (lightFrame || reduceMotion) return;
+    lightFrame = requestAnimationFrame(() => {
+      lightFrame = 0;
+      const el = e.target.closest?.(".window, #control-center");
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--mx", e.clientX - r.left + "px");
+      el.style.setProperty("--my", e.clientY - r.top + "px");
+    });
+  }, { passive: true });
+
+  // Content softly dissolves under a toolbar once it has been scrolled.
+  addEventListener("scroll", (e) => {
+    const t = e.target;
+    if (t.classList?.contains("finder-items") || t.classList?.contains("notes-body"))
+      t.classList.toggle("scrolled", t.scrollTop > 0);
+  }, true);
 
   // Theme: remembers the visitor's choice; otherwise follows their system setting.
   const themeBtn = document.getElementById("theme-toggle");

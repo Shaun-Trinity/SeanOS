@@ -1,7 +1,15 @@
 :root {
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
-  --win-bg: rgba(255, 255, 255, 0.92);
-  --win-side: rgba(240, 238, 236, 0.9);
+  /* Liquid glass: --glass-alpha comes from the Control Center slider (0.92 = solid-ish, 0.12 = clear). */
+  --glass-alpha: 0.52;
+  --win-bg: rgba(250, 250, 252, var(--glass-alpha));
+  --win-side: rgba(236, 236, 240, calc(var(--glass-alpha) * 0.55));
+  --glass-edge: rgba(255, 255, 255, 0.5);
+  /* Clearer glass blurs less, more opaque glass diffuses more (Golden Gate diffuses complex content harder). */
+  --glass-blur: calc(12px + (var(--glass-alpha) - 0.12) * 40px);
+  --rim-hi: rgba(255, 255, 255, 0.85);   /* specular edge highlight */
+  --rim-lo: rgba(0, 0, 0, 0.14);         /* darkened lower edge */
+  --spring: cubic-bezier(.34, 1.56, .64, 1);
   --win-border: rgba(0, 0, 0, 0.12);
   --text: #1d1d1f;
   --muted: #6e6e73;
@@ -9,23 +17,30 @@
   --select: rgba(47, 111, 228, 0.9);
   --menubar-h: 28px;
   --menubar-fg: #fff;
-  --th-bg: rgba(246, 246, 246, 0.9);
+  --th-bg: rgba(255, 255, 255, calc(var(--glass-alpha) * 0.35));
   --chip: rgba(0, 0, 0, 0.06);
 }
 
 /* Dark theme: toggled by the moon button (html[data-theme="dark"]). */
 :root[data-theme="dark"] {
-  --win-bg: rgba(36, 36, 40, 0.92);
-  --win-side: rgba(46, 46, 50, 0.9);
+  --win-bg: rgba(30, 30, 36, var(--glass-alpha));
+  --win-side: rgba(46, 46, 52, calc(var(--glass-alpha) * 0.55));
+  --glass-edge: rgba(255, 255, 255, 0.16);
+  --rim-hi: rgba(255, 255, 255, 0.35);
+  --rim-lo: rgba(0, 0, 0, 0.35);
   --win-border: rgba(255, 255, 255, 0.1);
   --text: #f2f2f7;
   --muted: #a1a1aa;
   --accent: #5b9bff;
-  --th-bg: rgba(44, 44, 48, 0.95);
+  --th-bg: rgba(255, 255, 255, calc(var(--glass-alpha) * 0.08));
   --chip: rgba(255, 255, 255, 0.1);
 }
 :root[data-theme="dark"] #desktop::before {
   content: ""; position: fixed; inset: 0; background: rgba(8, 10, 30, 0.35); pointer-events: none;
+}
+
+@supports (transition-timing-function: linear(0, 1)) {
+  :root { --spring: linear(0, .157 4.5%, .528 10.5%, .892 17.5%, 1.066 24.5%, 1.098 29%, 1.071 35%, .995 47.5%, .982 56%, 1.003 75%, 1); }
 }
 
 * { box-sizing: border-box; }
@@ -74,6 +89,66 @@ button.menu-item:focus-visible { text-decoration: underline; text-underline-offs
 #theme-toggle .i-sun, :root[data-theme="dark"] #theme-toggle .i-moon { display: none; }
 :root[data-theme="dark"] #theme-toggle .i-sun { display: block; }
 
+/* ---------- Control Center ---------- */
+#cc-toggle svg { width: 16px; height: 16px; }
+#cc-toggle[aria-expanded="true"] { opacity: 1; background: rgba(255,255,255,.24); box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 0 0 .5px rgba(255,255,255,.25); border-radius: 999px; }
+#control-center {
+  position: fixed; top: calc(var(--menubar-h) + 5px); right: 8px; z-index: 21000;
+  width: 300px; max-width: calc(100vw - 16px); padding: 8px;
+  color: var(--text);
+  border-radius: 22px;
+  box-shadow: 0 22px 55px rgba(0,0,0,.32), 0 0 0 .5px rgba(0,0,0,.18);
+  transform-origin: top left;
+}
+#control-center[hidden] { display: none; }
+/* The glass lives on its own layer (a parent with backdrop-filter would block the lens layer). */
+.cc-glass {
+  position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.12)), rgba(255,255,255,.22);
+  backdrop-filter: blur(18px) saturate(2) brightness(1.06);
+  -webkit-backdrop-filter: blur(18px) saturate(2) brightness(1.06);
+}
+/* Chromium can refract the backdrop through an SVG lens map: edges bend light like real glass. */
+.lens .cc-glass {
+  backdrop-filter: url(#cc-lens) blur(14px) saturate(2) brightness(1.06);
+}
+:root[data-theme="dark"] .cc-glass { background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.02)), rgba(24,24,30,.38); }
+:root[data-theme="dark"] #control-center { box-shadow: 0 22px 55px rgba(0,0,0,.5), 0 0 0 .5px rgba(255,255,255,.08); }
+.cc-content { position: relative; z-index: 1; display: grid; gap: 8px; }
+
+.cc-tile { padding: 12px 12px 14px; border-radius: 14px; background: rgba(255,255,255,.42); box-shadow: inset 0 1px 0 rgba(255,255,255,.6); transition: transform .45s var(--spring); }
+.cc-tile:active { transform: scale(.98); transition-duration: .12s; }
+:root[data-theme="dark"] .cc-tile { background: rgba(255,255,255,.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+.cc-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 13px; font-weight: 600; }
+.cc-head output { font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Slider: a thick pill that fills white as it moves, like macOS Control Center. */
+.cc-slider {
+  --fill: 50%;
+  -webkit-appearance: none; appearance: none;
+  display: block; width: 100%; height: 26px; margin: 0; border-radius: 13px; cursor: pointer;
+  background: linear-gradient(to right, #fff var(--fill), rgba(0,0,0,.12) var(--fill));
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
+}
+:root[data-theme="dark"] .cc-slider { background: linear-gradient(to right, #fff var(--fill), rgba(255,255,255,.14) var(--fill)); }
+.cc-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3), 0 0 0 .5px rgba(0,0,0,.1);
+  transition: transform .45s var(--spring), background .2s ease, box-shadow .2s ease;
+}
+.cc-slider:active::-webkit-slider-thumb {
+  transform: scale(1.3); transition-duration: .2s;
+  background: rgba(255,255,255,.25);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -1px 2px rgba(0,0,0,.15), 0 0 0 1px rgba(255,255,255,.7), 0 4px 12px rgba(0,0,0,.25);
+}
+.cc-slider::-moz-range-thumb {
+  width: 26px; height: 26px; border: 0; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3), 0 0 0 .5px rgba(0,0,0,.1);
+  transition: transform .45s var(--spring), background .2s ease;
+}
+.cc-slider:active::-moz-range-thumb { transform: scale(1.3); background: rgba(255,255,255,.25); box-shadow: inset 0 1px 1px rgba(255,255,255,.9), 0 0 0 1px rgba(255,255,255,.7), 0 4px 12px rgba(0,0,0,.25); }
+.cc-slider:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 /* ---------- Desktop icons ---------- */
 #desktop { position: fixed; inset: var(--menubar-h) 0 0 0; }
 
@@ -118,6 +193,21 @@ button.menu-item:focus-visible { text-decoration: underline; text-underline-offs
 .icon.dragging .thumb { transform: scale(1.08); filter: drop-shadow(0 10px 14px rgba(0,0,0,.35)); }
 .icon.dropped .thumb { animation: settle .26s ease-out; }
 @keyframes settle { 0% { transform: scale(1.08); } 60% { transform: scale(.96); } 100% { transform: scale(1); } }
+
+#icons.tidying .icon { transition: left .4s cubic-bezier(.2,.8,.2,1), top .4s cubic-bezier(.2,.8,.2,1); }
+
+/* ---------- Desktop right-click menu ---------- */
+#ctx-menu {
+  position: fixed; z-index: 25000; min-width: 170px; padding: 5px;
+  background: var(--win-bg); color: var(--text);
+  border: 1px solid var(--win-border); border-radius: 9px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.28);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  font-size: 13px;
+}
+#ctx-menu[hidden] { display: none; }
+#ctx-menu button { display: block; width: 100%; text-align: left; padding: 4px 10px; border-radius: 5px; }
+#ctx-menu button:hover, #ctx-menu button:focus-visible { background: var(--accent); color: #fff; outline: none; }
 
 /* ---------- Boot screen ---------- */
 #boot {
@@ -188,13 +278,14 @@ button.menu-item:focus-visible { text-decoration: underline; text-underline-offs
   position: absolute;
   display: flex; flex-direction: column;
   min-width: 280px;
-  background: var(--win-bg);
-  border: 1px solid var(--win-border);
+  /* Thick glass: a faint top sheen over the tint, heavy diffusion, colour pulled through by saturate. */
+  background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0) 28%), var(--win-bg);
   border-radius: 12px;
-  box-shadow: 0 22px 60px rgba(0,0,0,.35), 0 0 0 .5px rgba(0,0,0,.2);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 28px 70px rgba(0,0,0,.38), 0 0 0 .5px rgba(0,0,0,.3);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.9) brightness(1.04);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.9) brightness(1.04);
   overflow: hidden;
+  transition: box-shadow .25s ease;
   animation: pop .18s ease-out;
 }
 @keyframes pop { from { transform: scale(.94); opacity: 0; } }
@@ -202,6 +293,21 @@ button.menu-item:focus-visible { text-decoration: underline; text-underline-offs
 @keyframes shrink { to { transform: scale(.94); opacity: 0; } }
 .window.zoomed { inset: 8px 8px 84px 8px !important; width: auto !important; height: auto !important; }
 .window:not(.focused) .light { background: #d0d0d0 !important; }
+/* Inactive windows sit back: softer shadow and a dimmer title, so the active one stands out. */
+.window:not(.focused) { box-shadow: 0 12px 34px rgba(0,0,0,.2), 0 0 0 .5px rgba(0,0,0,.2); }
+.window:not(.focused) .title { color: var(--muted); }
+
+/* Rim light shared by glass surfaces: bright top edge, darker bottom edge, plus a specular
+   hotspot that follows the pointer (--mx/--my, set in app.js). Drawn as a 1px ring via mask. */
+.window::after, #control-center::after {
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  border-radius: inherit; padding: 1px;
+  background:
+    radial-gradient(180px circle at var(--mx, 30%) var(--my, 0%), var(--rim-hi), transparent 70%),
+    linear-gradient(180deg, var(--rim-hi), rgba(255,255,255,.12) 30%, rgba(255,255,255,.04) 70%, var(--rim-lo));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
 
 .titlebar {
   position: relative; display: flex; align-items: center;
@@ -293,6 +399,8 @@ th { background: var(--chip); font-weight: 600; }
 }
 .finder-title { flex: 1; margin: 0; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .seg { display: flex; gap: 2px; }
+.tb-btn, .menu-item, .finder-side-item, .btn { transition: transform .45s var(--spring), background .15s ease, opacity .12s ease; }
+.tb-btn:active:not(:disabled), button.menu-item:active, .finder-side-item:active, .btn:active { transform: scale(.92); transition-duration: .1s; }
 .tb-btn {
   display: grid; place-items: center; width: 30px; height: 26px; border-radius: 6px;
   font-size: 22px; line-height: 1; color: var(--muted);
@@ -331,7 +439,7 @@ th { background: var(--chip); font-weight: 600; }
   display: grid; grid-template-columns: 1fr 130px; align-items: center; gap: 12px;
   width: 100%; padding: 5px 14px; text-align: left; font-size: 13px;
 }
-.list-head { position: sticky; top: 0; font-size: 11px; font-weight: 600; color: var(--muted); background: var(--win-bg); border-bottom: 1px solid var(--win-border); }
+.list-head { position: sticky; top: 0; font-size: 11px; font-weight: 600; color: var(--muted); background: var(--win-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--win-border); }
 .view-list .f-item { border-radius: 0; }
 .view-list .f-item:nth-child(odd) { background: var(--chip); }
 .view-list .f-item.selected { background: var(--accent); color: #fff; }
@@ -341,6 +449,10 @@ th { background: var(--chip); font-weight: 600; }
 .view-list .f-item.short .f-name img { width: 12px; margin: 0 10px 0 10px; }
 .f-kind { color: var(--muted); font-size: 12px; }
 
+.finder-items.view-icons.scrolled, .notes-body.scrolled {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 22px);
+}
 .finder-empty { display: grid; place-items: center; height: 100%; min-height: 200px; color: var(--muted); font-size: 13px; }
 .finder-status {
   flex: none; padding: 5px 12px; font-size: 11px; color: var(--muted); text-align: center;
@@ -368,7 +480,8 @@ th { background: var(--chip); font-weight: 600; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .window, .window.closing { animation: none; }
+  .window, .window.closing, #control-center { animation: none; }
+  .tb-btn, .menu-item, .finder-side-item, .btn, .cc-tile { transition: none; }
   .icon .thumb, .icon.dropped .thumb { transition: none; animation: none; }
   .dock-item { transition: none; }
 }
