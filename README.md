@@ -13,8 +13,8 @@ A self-hosted, macOS-desktop-style video portfolio. Plain HTML/CSS/JS, no build 
 Everything is in `data.js` — bio, roles, experience, contact details, the folder list, and the video list
 (`id` = YouTube video id, `short: true` for Shorts, `folder` = which folder it appears in).
 
-## Custom wallpaper
-Drop an image at `assets/wallpaper.jpg`. Without it, a painted CSS landscape is used.
+## Wallpaper
+The wallpaper is `assets/wallpaper.webp`. Replace that file to change it; if it's missing, a painted CSS landscape is used.
 
 ## Run locally
     python3 -m http.server 8080

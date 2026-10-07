@@ -137,7 +137,15 @@
   // A folder's own artwork when it has one, otherwise the generic drawn folder.
   const folderIcon = (f) => f.icon ? `<img class="folder-img" src="${esc(f.icon)}" alt="" draggable="false">` : folderSVG;
   const videosIn = (folderId) => P.videos.filter((v) => v.folder === folderId);
-  const thumbFor = (v) => `https://i.ytimg.com/vi/${v.id}/${v.short ? "oar2" : "hqdefault"}.jpg`;
+  const isTikTok = (v) => v.platform === "tiktok";
+  const thumbFor = (v) => v.cover || (isTikTok(v) ? null : `https://i.ytimg.com/vi/${v.id}/${v.short ? "oar2" : "hqdefault"}.jpg`);
+  // Thumbnail markup: the image, or a placeholder tile when there is none (TikTok without a cover).
+  const thumbHTML = (v) => {
+    const src = thumbFor(v);
+    return src ? `<img src="${esc(src)}" alt="" loading="lazy">`
+      : `<span class="tt-cover" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></svg></span>`;
+  };
+  const kindOf = (v) => (isTikTok(v) ? "TikTok Video" : v.short ? "YouTube Short" : "YouTube Video");
 
   // Click selects, double-click (or tap on touch, Enter on keyboard) opens.
   function bindOpen(el, group, open) {
@@ -183,12 +191,11 @@
     iconsEl.classList.remove("free");
     icons.forEach((el) => (el.style.left = el.style.top = ""));
     if (!canDrag()) return;
-    const box = iconsEl.getBoundingClientRect();
-    const slots = icons.map((el) => {
-      const r = el.getBoundingClientRect();
-      return { x: r.left - box.left, y: r.top - box.top };
-    });
+    // Read the grid slots in page coordinates, then convert them against the free (full-width) box.
+    const rects = icons.map((el) => el.getBoundingClientRect());
     iconsEl.classList.add("free");
+    const box = iconsEl.getBoundingClientRect();
+    const slots = rects.map((r) => ({ x: r.left - box.left, y: r.top - box.top }));
     icons.forEach((el, i) => {
       const p = positions[el.dataset.id] || slots[i];
       placeIcon(el, p.x, p.y);
@@ -367,8 +374,8 @@
         el.className = "f-item" + (v.short ? " short" : "");
         el.title = v.title;
         el.innerHTML = finderView === "list"
-          ? `<span class="f-name"><img src="${thumbFor(v)}" alt="" loading="lazy">${esc(v.title)}</span><span class="f-kind">${v.short ? "YouTube Short" : "YouTube Video"}</span>`
-          : `<span class="f-thumb"><img src="${thumbFor(v)}" alt="" loading="lazy"></span><span class="f-label">${esc(v.title)}</span>`;
+          ? `<span class="f-name">${thumbHTML(v)}${esc(v.title)}</span><span class="f-kind">${kindOf(v)}</span>`
+          : `<span class="f-thumb">${thumbHTML(v)}</span><span class="f-label">${esc(v.title)}</span>`;
         bindOpen(el, items, () => openVideo(v));
         items.appendChild(el);
       });
@@ -407,7 +414,11 @@
       title: v.title,
       ...size,
       render(c) {
-        c.innerHTML = `<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(v.id)}?autoplay=1&rel=0&modestbranding=1" title="${esc(v.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`;
+        const id = encodeURIComponent(v.id);
+        const src = isTikTok(v)
+          ? `https://www.tiktok.com/player/v1/${id}?autoplay=1&rel=0&description=0&music_info=0`
+          : `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1`;
+        c.innerHTML = `<div class="player"><iframe src="${src}" title="${esc(v.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`;
       },
     });
   }
@@ -523,6 +534,68 @@
   })();
   addEventListener("resize", renderClock);
 
+  /* ---------- Desktop widgets ---------- */
+  // Calendar: this month at a glance; the whole widget opens the booking page.
+  const calWidget = document.getElementById("widget-cal");
+  calWidget.href = P.bookingUrl;
+  calWidget.title = "Book a call with " + P.name;
+  calWidget.setAttribute("aria-label", `Book a call with ${P.name} (opens in a new tab)`);
+
+  function renderCalendar() {
+    const now = new Date(), y = now.getFullYear(), m = now.getMonth(), today = now.getDate();
+    const lead = new Date(y, m, 1).getDay(); // weeks start on Sunday
+    const days = new Date(y, m + 1, 0).getDate();
+    const cells = Array(lead).fill("<span></span>");
+    for (let d = 1; d <= days; d++) {
+      const dow = (lead + d - 1) % 7, cls = [d === today && "today", (dow === 0 || dow === 6) && "weekend"].filter(Boolean);
+      cells.push(`<span${cls.length ? ` class="${cls.join(" ")}"` : ""}>${d}</span>`);
+    }
+    calWidget.innerHTML = `
+      <div class="cal-month">${now.toLocaleDateString("en-GB", { month: "long" })}</div>
+      <div class="cal-grid" aria-hidden="true">
+        ${["S", "M", "T", "W", "T", "F", "S"].map((d) => `<b>${d}</b>`).join("")}${cells.join("")}
+      </div>`;
+    calWidget._day = today;
+  }
+
+  // Clock: Sean's local time, digital, with minute ticks around the edge of the widget.
+  const clockWidget = document.getElementById("widget-clock");
+  const city = P.timeZone.split("/").pop().replace(/_/g, " ");
+  const cityCode = (P.cityCode || city.slice(0, 3)).toUpperCase();
+  // 60 ticks on a squircle just inside the widget's rounded edge.
+  const ticks = Array.from({ length: 60 }, (_, i) => {
+    const a = (i / 60) * 2 * Math.PI, c = Math.sin(a), s2 = -Math.cos(a), n = 5;
+    const edge = (r) => r / Math.pow(Math.abs(c) ** n + Math.abs(s2) ** n, 1 / n);
+    const r1 = edge(72), r2 = edge(66);
+    return `<line x1="${(79 + c * r1).toFixed(1)}" y1="${(79 + s2 * r1).toFixed(1)}" x2="${(79 + c * r2).toFixed(1)}" y2="${(79 + s2 * r2).toFixed(1)}"/>`;
+  }).join("");
+  clockWidget.innerHTML = `
+    <svg class="dclock-ticks" viewBox="0 0 158 158" aria-hidden="true">${ticks}</svg>
+    <div class="dclock-city">${esc(cityCode)}</div>
+    <div class="dclock-hm"></div>
+    <div class="dclock-offset"></div>`;
+  const tickEls = clockWidget.querySelectorAll(".dclock-ticks line");
+  const clockFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: P.timeZone });
+
+  function zonedNow() {
+    // Wall-clock time in the chosen zone, as a local Date (good enough for drawing hands and offsets).
+    return new Date(new Date().toLocaleString("en-US", { timeZone: P.timeZone }));
+  }
+  function renderWidgetClock() {
+    const local = new Date(), t = zonedNow(), sec = local.getSeconds();
+    const hm = clockFmt.format(local);
+    clockWidget.querySelector(".dclock-hm").textContent = hm;
+    tickEls.forEach((el, i) => el.classList.toggle("now", i === sec)); // the current second glows
+    const diff = Math.round((t - local) / 36e5);
+    clockWidget.querySelector(".dclock-offset").textContent = (diff < 0 ? "−" : "+") + Math.abs(diff);
+    const rel = diff === 0 ? "same time as you" : `${Math.abs(diff)} hours ${diff > 0 ? "ahead of" : "behind"} you`;
+    clockWidget.setAttribute("aria-label", `Time in ${city}: ${hm}, ${rel}`);
+    if (calWidget._day !== local.getDate()) renderCalendar(); // roll the calendar over at midnight
+  }
+  renderCalendar();
+  renderWidgetClock();
+  setInterval(renderWidgetClock, 1000);
+
   /* ---------- Control Center (transparency slider) ---------- */
   const ccBtn = document.getElementById("cc-toggle");
   const cc = document.getElementById("control-center");
@@ -534,7 +607,7 @@
     pct = Math.max(0, Math.min(100, Math.round(pct)));
     document.documentElement.style.setProperty("--glass-alpha", (0.92 - (pct / 100) * 0.8).toFixed(3));
     glassSlider.value = pct;
-    glassSlider.style.setProperty("--fill", pct + "%");
+    glassSlider.parentElement.style.setProperty("--p", pct / 100);
     glassValue.textContent = pct + "%";
     if (save) try { localStorage.setItem("glass", pct); } catch {}
   }
@@ -643,7 +716,13 @@
     };
   }
 
-  ccBtn.addEventListener("click", () => toggleCC());
+  ccBtn.addEventListener("click", (e) => {
+    toggleCC();
+    if (e.detail !== 0) glassSlider.blur(); // mouse/touch open: no focus ring; keyboard open keeps focus
+  });
+  // Track keyboard vs pointer use so focus rings only show for keyboard navigation.
+  addEventListener("keydown", (e) => { if (e.key === "Tab") document.documentElement.classList.add("kbd"); }, true);
+  addEventListener("pointerdown", () => document.documentElement.classList.remove("kbd"), true);
   addEventListener("pointerdown", (e) => {
     if (!cc.hidden && !cc.contains(e.target) && !ccBtn.contains(e.target)) toggleCC(false);
   }, true);
@@ -656,7 +735,7 @@
     if (lightFrame || reduceMotion) return;
     lightFrame = requestAnimationFrame(() => {
       lightFrame = 0;
-      const el = e.target.closest?.(".window, #control-center");
+      const el = e.target.closest?.(".window, #control-center, .widget");
       if (!el) return;
       const r = el.getBoundingClientRect();
       el.style.setProperty("--mx", e.clientX - r.left + "px");

@@ -18,6 +18,11 @@ window.PORTFOLIO = {
   email: "seansesing@gmail.com",
   phone: "+27683648494",
   linkedin: "https://linkedin.com/in/sean-sesing",
+  // Calendar widget: replace with your personal Calendar.com booking link (e.g. https://calendar.com/your-name).
+  bookingUrl: "https://calendar.com/",
+  // Clock widget shows the time here, so visitors can see your local time.
+  timeZone: "Africa/Johannesburg",
+  cityCode: "JHB", // short label on the clock widget
 
   // Desktop folders, in display order. `icon` is the folder artwork; each video below names its folder.
   folders: [
@@ -27,7 +32,7 @@ window.PORTFOLIO = {
     { id: "passion-projects", name: "Passion Projects", icon: "assets/folders/passion-projects.png" },
   ],
 
-  // `id` is the YouTube video id. `short: true` renders a vertical (9:16) thumbnail and player.
+  // `id` is the YouTube (or TikTok) video id. `short: true` renders a vertical (9:16) thumbnail and player.
   // `folder` is one of the folder ids above.
   videos: [
     { id: "g_2KfJXox1E", title: "Amarula is African Excellence in Action", folder: "long-form" },
@@ -38,5 +43,11 @@ window.PORTFOLIO = {
     { id: "_4m_LQTcP2g", title: "This is Wits", folder: "long-form" },
     { id: "AYfg70sGQ34", title: "Thank You, INDIA! You Rock!", short: true, folder: "short-form" },
     { id: "4n7jGLQ-Tt0", title: "I Finally Understood HOW BIG the Congo is...", short: true, folder: "short-form" },
+    // TikTok videos: `platform: "tiktok"` plays them in TikTok's embedded player.
+    // Covers are saved locally (assets/covers) because TikTok's own thumbnail links expire.
+    { id: "7436341205094370616", title: "Rating Campus Central", short: true, platform: "tiktok", folder: "short-form", cover: "assets/covers/7436341205094370616.jpg" },
+    { id: "7561824933307829512", title: "Say Less with Pearl Thando podcast clip", short: true, platform: "tiktok", folder: "short-form", cover: "assets/covers/7561824933307829512.jpg" },
+    { id: "7496026170639584518", title: "The Boys D3n Clip 1", short: true, platform: "tiktok", folder: "short-form", cover: "assets/covers/7496026170639584518.jpg" },
+    { id: "7476720488358677766", title: "The Boys D3n Clip 2", short: true, platform: "tiktok", folder: "short-form", cover: "assets/covers/7476720488358677766.jpg" },
   ],
 };

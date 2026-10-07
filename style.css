@@ -10,6 +10,7 @@
   --rim-hi: rgba(255, 255, 255, 0.85);   /* specular edge highlight */
   --rim-lo: rgba(0, 0, 0, 0.14);         /* darkened lower edge */
   --spring: cubic-bezier(.34, 1.56, .64, 1);
+  --today-fg: #fff;
   --win-border: rgba(0, 0, 0, 0.12);
   --text: #1d1d1f;
   --muted: #6e6e73;
@@ -27,6 +28,7 @@
   --win-side: rgba(46, 46, 52, calc(var(--glass-alpha) * 0.55));
   --glass-edge: rgba(255, 255, 255, 0.16);
   --rim-hi: rgba(255, 255, 255, 0.35);
+  --today-fg: #1d1d1f;
   --rim-lo: rgba(0, 0, 0, 0.35);
   --win-border: rgba(255, 255, 255, 0.1);
   --text: #f2f2f7;
@@ -50,9 +52,9 @@ body {
   font-family: var(--font);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
-  /* Drop your own image at assets/wallpaper.jpg to replace the painted fallback. */
+  /* Wallpaper: assets/wallpaper.webp (Golden Gate). The painted landscape below shows if it fails to load. */
   background:
-    url("assets/wallpaper.jpg") center / cover no-repeat,
+    url("assets/wallpaper.webp") center / cover no-repeat,
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 1000' preserveAspectRatio='xMidYMax slice'><path d='M0 640 L260 520 L420 380 L520 420 L640 340 L800 500 L1000 540 L1250 500 L1600 580 L1600 1000 L0 1000Z' fill='%2342507a' opacity='.85'/><path d='M420 380 L455 405 L480 400 L500 412 L460 414Z' fill='%23dfe4f2' opacity='.8'/><path d='M600 365 L640 340 L685 380 L655 376 L625 386Z' fill='%23dfe4f2' opacity='.8'/><path d='M0 700 L400 640 L900 660 L1600 620 L1600 1000 L0 1000Z' fill='%2357607f'/><path d='M0 740 Q800 680 1600 730 L1600 1000 L0 1000Z' fill='%239a76b8'/><path d='M0 820 Q700 770 1600 830 L1600 1000 L0 1000Z' fill='%23b47fc7'/><path d='M0 900 Q900 850 1600 910 L1600 1000 L0 1000Z' fill='%23824fa6'/></svg>") bottom / cover no-repeat,
     linear-gradient(180deg, #24447e 0%, #4a6ea8 40%, #9fb6d6 62%, #c9b6d9 75%);
   background-color: #2b4a80;
@@ -122,15 +124,25 @@ button.menu-item:focus-visible { text-decoration: underline; text-underline-offs
 .cc-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 13px; font-weight: 600; }
 .cc-head output { font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-/* Slider: a thick pill that fills white as it moves, like macOS Control Center. */
-.cc-slider {
-  --fill: 50%;
-  -webkit-appearance: none; appearance: none;
-  display: block; width: 100%; height: 26px; margin: 0; border-radius: 13px; cursor: pointer;
-  background: linear-gradient(to right, #fff var(--fill), rgba(0,0,0,.12) var(--fill));
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
+/* Slider: a thick pill track with a white pill fill that ends exactly at the knob's edge,
+   so the fill is rounded at both ends like macOS Control Center (no flat cut-off). */
+.cc-slider-wrap {
+  --p: .5; /* 0–1, set from app.js */
+  position: relative; height: 26px; border-radius: 13px;
+  background: rgba(0,0,0,.12); box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
 }
-:root[data-theme="dark"] .cc-slider { background: linear-gradient(to right, #fff var(--fill), rgba(255,255,255,.14) var(--fill)); }
+:root[data-theme="dark"] .cc-slider-wrap { background: rgba(255,255,255,.14); }
+.cc-fill {
+  position: absolute; left: 0; top: 0; height: 100%; border-radius: inherit; pointer-events: none;
+  width: calc(26px + var(--p) * (100% - 26px)); /* knob width + its travel */
+  background: #fff;
+}
+.cc-slider {
+  -webkit-appearance: none; appearance: none;
+  position: relative; display: block; width: 100%; height: 26px; margin: 0; border-radius: 13px; cursor: pointer;
+  background: transparent; outline: none;
+}
+.cc-slider::-moz-range-track { background: transparent; }
 .cc-slider::-webkit-slider-thumb {
   -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%;
   background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3), 0 0 0 .5px rgba(0,0,0,.1);
@@ -147,14 +159,16 @@ button.menu-item:focus-visible { text-decoration: underline; text-underline-offs
   transition: transform .45s var(--spring), background .2s ease;
 }
 .cc-slider:active::-moz-range-thumb { transform: scale(1.3); background: rgba(255,255,255,.25); box-shadow: inset 0 1px 1px rgba(255,255,255,.9), 0 0 0 1px rgba(255,255,255,.7), 0 4px 12px rgba(0,0,0,.25); }
-.cc-slider:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Focus ring only for keyboard users (app.js toggles .kbd on the root). */
+.kbd .cc-slider:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---------- Desktop icons ---------- */
 #desktop { position: fixed; inset: var(--menubar-h) 0 0 0; }
 
 #icons {
   position: absolute;
-  top: 14px; left: 10px; bottom: 96px;
+  top: 14px; right: 10px; bottom: 96px;
+  direction: rtl; /* first column sits at the right edge and fills leftwards */
   display: grid;
   grid-auto-flow: column;
   grid-template-rows: repeat(auto-fill, 110px);
@@ -185,7 +199,8 @@ button.menu-item:focus-visible { text-decoration: underline; text-underline-offs
 .icon:focus-visible .label { outline: 2px solid #fff; outline-offset: 1px; }
 
 /* Draggable icons: app.js adds .free once each icon is pinned to a left/top position. */
-#icons.free { display: block; right: 10px; }
+#icons.free { display: block; left: 10px; right: 10px; }
+#icons .icon { direction: ltr; }
 #icons.free .icon { position: absolute; width: 92px; }
 .icon img { -webkit-user-drag: none; pointer-events: none; }
 .icon .thumb { transition: transform .18s ease, filter .18s ease; }
@@ -208,6 +223,57 @@ button.menu-item:focus-visible { text-decoration: underline; text-underline-offs
 #ctx-menu[hidden] { display: none; }
 #ctx-menu button { display: block; width: 100%; text-align: left; padding: 4px 10px; border-radius: 5px; }
 #ctx-menu button:hover, #ctx-menu button:focus-visible { background: var(--accent); color: #fff; outline: none; }
+
+/* ---------- Desktop widgets ---------- */
+#widgets {
+  position: absolute; top: 14px; left: 14px; z-index: 1;
+  display: grid; grid-template-columns: 158px 158px; gap: 14px;
+}
+.widget-clock { grid-column: 2; }
+/* Widgets are thick glass, like windows (same tint, blur and rim light). */
+.widget {
+  position: relative; display: block; width: 158px; height: 158px; padding: 12px;
+  border-radius: 22px; overflow: hidden;
+  color: var(--text); text-decoration: none;
+  /* A touch more tint than windows: widgets hold small text, so legibility wins (as in Golden Gate). */
+  background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.06) 40%), var(--win-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.9) brightness(1.04);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.9) brightness(1.04);
+  box-shadow: 0 14px 34px rgba(0,0,0,.24), 0 0 0 .5px rgba(0,0,0,.2);
+  transition: transform .45s var(--spring), box-shadow .25s ease;
+  user-select: none; -webkit-user-select: none;
+}
+a.widget:hover { transform: scale(1.03); box-shadow: 0 18px 40px rgba(0,0,0,.3), 0 0 0 .5px rgba(0,0,0,.2); }
+a.widget:active { transform: scale(.97); transition-duration: .1s; }
+a.widget:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+/* Calendar: month header, weekday row, dimmed weekends, today in a filled circle. */
+.widget-cal { padding: 14px 12px 10px; }
+.cal-month { font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; margin: 0 0 4px 4px; }
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); align-items: center; justify-items: center;
+  font-size: 11.5px; font-weight: 700; line-height: 15.5px; font-variant-numeric: tabular-nums;
+}
+.cal-grid b { font-size: 10.5px; font-weight: 700; opacity: .6; }
+.cal-grid .weekend { opacity: .5; }
+.cal-grid .today {
+  display: grid; place-items: center; /* centre the number inside the circle */
+  width: 19px; height: 19px; border-radius: 50%; opacity: 1;
+  background: var(--text); color: var(--today-fg);
+}
+
+/* Digital clock: city code, tall condensed numerals, offset, minute ticks around the edge. */
+.widget-clock { display: grid; place-content: center; justify-items: center; text-align: center; }
+.dclock-ticks { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dclock-ticks line { stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; opacity: .28; transition: opacity .4s ease; }
+.dclock-ticks line.now { opacity: .95; }
+.dclock-city { position: relative; font-size: 12px; font-weight: 700; letter-spacing: .04em; opacity: .8; }
+.dclock-hm {
+  position: relative; font-family: "Oswald", "SF Pro Display", -apple-system, "Arial Narrow", sans-serif;
+  font-size: 60px; font-weight: 600; line-height: 1; letter-spacing: -.01em; margin: 2px 0 4px;
+  font-variant-numeric: tabular-nums;
+}
+.dclock-offset { position: relative; font-size: 13px; font-weight: 700; opacity: .55; }
 
 /* ---------- Boot screen ---------- */
 #boot {
@@ -299,7 +365,7 @@ button.menu-item:focus-visible { text-decoration: underline; text-underline-offs
 
 /* Rim light shared by glass surfaces: bright top edge, darker bottom edge, plus a specular
    hotspot that follows the pointer (--mx/--my, set in app.js). Drawn as a 1px ring via mask. */
-.window::after, #control-center::after {
+.window::after, #control-center::after, .widget::after {
   content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
   border-radius: inherit; padding: 1px;
   background:
@@ -426,6 +492,15 @@ th { background: var(--chip); font-weight: 600; }
   border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.3);
 }
 .f-item.short .f-thumb img { width: 43px; height: 76px; }
+/* Placeholder thumbnail for videos without a cover image (e.g. TikTok). */
+.tt-cover {
+  display: grid; place-items: center; width: 43px; height: 76px; border-radius: 4px; flex: none;
+  background: linear-gradient(160deg, #1b1b22 0%, #0b0b10 60%), #111;
+  box-shadow: 0 1px 4px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.08), inset 3px 0 0 rgba(37,244,238,.55), inset -3px 0 0 rgba(254,44,85,.55);
+}
+.tt-cover svg { width: 16px; height: 16px; fill: #fff; opacity: .9; }
+.view-list .tt-cover { width: 12px; height: 18px; margin: 0 10px; border-radius: 2px; }
+.view-list .tt-cover svg { width: 8px; height: 8px; }
 .f-label {
   font-size: 12px; line-height: 1.3; text-align: center; padding: 1px 6px; border-radius: 4px; max-width: 128px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
@@ -463,7 +538,8 @@ th { background: var(--chip); font-weight: 600; }
 @media (max-width: 640px) {
   #menubar { padding: 0 4px; }
   .menu-item { padding: 0 6px; }
-  #icons { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, 88px); grid-template-rows: none; grid-auto-rows: 110px; right: 8px; overflow-y: auto; }
+  #widgets { top: auto; bottom: 92px; left: 8px; right: 8px; grid-template-columns: repeat(2, 158px); justify-content: center; }
+  #icons { direction: ltr; grid-auto-flow: row; grid-template-columns: repeat(auto-fill, 88px); grid-template-rows: none; grid-auto-rows: 110px; left: 8px; right: 8px; overflow-y: auto; }
   .finder { flex-direction: column; }
   .finder-side { width: auto; display: flex; gap: 2px; padding: 6px; border-right: 0; border-bottom: 1px solid var(--win-border); overflow-x: auto; }
   .finder-side-head { display: none; }
@@ -471,7 +547,7 @@ th { background: var(--chip); font-weight: 600; }
   .finder-items.view-icons { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
   .f-thumb { width: 104px; height: 72px; }
   .f-thumb img { width: 96px; height: 54px; }
-  .f-item.short .f-thumb img { width: 36px; height: 64px; }
+  .f-item.short .f-thumb img, .f-thumb .tt-cover { width: 36px; height: 64px; }
   .window { left: 8px !important; right: 8px; top: 8px !important; bottom: 84px; width: auto !important; height: auto !important; }
   .notes-app { flex-direction: column; }
   .notes-side { width: auto; display: flex; gap: 4px; border-right: 0; border-bottom: 1px solid var(--win-border); }
@@ -481,7 +557,7 @@ th { background: var(--chip); font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) {
   .window, .window.closing, #control-center { animation: none; }
-  .tb-btn, .menu-item, .finder-side-item, .btn, .cc-tile { transition: none; }
+  .tb-btn, .menu-item, .finder-side-item, .btn, .cc-tile, .widget { transition: none; }
   .icon .thumb, .icon.dropped .thumb { transition: none; animation: none; }
   .dock-item { transition: none; }
 }

@@ -8,6 +8,9 @@
   <meta property="og:title" content="Sean Sesing – Video Editor Portfolio">
   <meta property="og:description" content="Short and long form video for brands, creators and campaigns.">
   <meta property="og:image" content="https://i.ytimg.com/vi/g_2KfJXox1E/maxresdefault.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -45,7 +48,10 @@
     <div class="cc-content">
       <section class="cc-tile">
         <div class="cc-head"><label for="glass-slider">Transparency</label><output id="glass-value" for="glass-slider">50%</output></div>
-        <input type="range" class="cc-slider" id="glass-slider" min="0" max="100" step="1" value="50">
+        <div class="cc-slider-wrap">
+          <span class="cc-fill" aria-hidden="true"></span>
+          <input type="range" class="cc-slider" id="glass-slider" min="0" max="100" step="1" value="50">
+        </div>
       </section>
     </div>
   </div>
@@ -60,6 +66,12 @@
 
   <main id="desktop" aria-label="Desktop">
     <div id="icons" role="list"></div>
+
+    <!-- Desktop widgets (filled in by app.js) -->
+    <aside id="widgets" aria-label="Widgets">
+      <a class="widget widget-cal" id="widget-cal" target="_blank" rel="noopener"></a>
+      <div class="widget widget-clock" id="widget-clock" role="img"></div>
+    </aside>
   </main>
 
   <!-- Desktop right-click menu -->
