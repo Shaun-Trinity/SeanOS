@@ -147,6 +147,82 @@
   };
   const kindOf = (v) => (isTikTok(v) ? "TikTok Video" : v.short ? "YouTube Short" : "YouTube Video");
 
+  /* ---------- Presentations (Case Studies) ---------- */
+  // A deck is a PDF (drawn with PDF.js, loaded only when a PDF deck is first used) or a list of slide images.
+  // Either way it exposes the same shape: { count, aspect, src(i), thumb(i) } where src/thumb resolve to image URLs.
+  const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+  let pdfjs = null;
+  function loadPdfJs() {
+    return (pdfjs ||= new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = PDFJS + "pdf.min.js";
+      s.onload = () => {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.js";
+        resolve(window.pdfjsLib);
+      };
+      s.onerror = () => ((pdfjs = null), reject(new Error("Could not load the PDF viewer")));
+      document.head.appendChild(s);
+    }));
+  }
+
+  const decks = new Map(); // source -> Promise<deck>
+  function loadDeck(p) {
+    const key = p.pdf || p.slides.join("|");
+    if (!decks.has(key)) {
+      const job = p.pdf ? loadPdfDeck(p.pdf) : loadImageDeck(p.slides);
+      job.catch(() => decks.delete(key)); // allow a retry after a failure
+      decks.set(key, job);
+    }
+    return decks.get(key);
+  }
+
+  async function loadImageDeck(slides) {
+    const first = new Image();
+    first.src = slides[0];
+    await first.decode().catch(() => {});
+    const aspect = first.naturalWidth ? first.naturalWidth / first.naturalHeight : 16 / 9;
+    return { count: slides.length, aspect, src: async (i) => slides[i], thumb: async (i) => slides[i] };
+  }
+
+  async function loadPdfDeck(url) {
+    const lib = await loadPdfJs();
+    const doc = await lib.getDocument(url).promise;
+    const first = (await doc.getPage(1)).getViewport({ scale: 1 });
+    const cache = new Map();
+    // Render a page once per width and keep it as an image URL, so both views can reuse it.
+    const render = (i, width) => {
+      const k = i + "@" + width;
+      if (!cache.has(k)) cache.set(k, (async () => {
+        const page = await doc.getPage(i + 1);
+        const vp = page.getViewport({ scale: width / page.getViewport({ scale: 1 }).width });
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(vp.width);
+        canvas.height = Math.round(vp.height);
+        await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+        const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.92));
+        return URL.createObjectURL(blob);
+      })());
+      return cache.get(k);
+    };
+    const full = Math.min(2560, Math.round(screen.width * (devicePixelRatio || 1)));
+    return { count: doc.numPages, aspect: first.width / first.height, src: (i) => render(i, full), thumb: (i) => render(i, 360) };
+  }
+
+  const presentationsIn = (folderId) => (P.presentations || []).filter((p) => (p.folder || "case-studies") === folderId);
+  const slidesIcon = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M12 16v4M8 20h8"/></svg>`;
+  function deckThumbHTML(p) {
+    const src = p.cover || p.slides?.[0];
+    return `<span class="deck-thumb">${src ? `<img src="${esc(src)}" alt="" loading="lazy">` : slidesIcon}</span>`;
+  }
+  // PDF decks without a cover get slide 1 drawn into their thumbnail once the deck loads.
+  function fillDeckThumb(el, p) {
+    if (p.cover || p.slides) return;
+    loadDeck(p).then((d) => d.thumb(0)).then((url) => {
+      const t = el.querySelector(".deck-thumb");
+      if (t) t.innerHTML = `<img src="${url}" alt="">`;
+    }).catch(() => {});
+  }
+
   // Click selects, double-click (or tap on touch, Enter on keyboard) opens.
   function bindOpen(el, group, open) {
     el.addEventListener("click", (e) => {
@@ -348,7 +424,8 @@
 
     function show(folderId) {
       const f = P.folders.find((x) => x.id === folderId) || P.folders[0];
-      const vids = videosIn(f.id);
+      const vids = videosIn(f.id), decksHere = presentationsIn(f.id);
+      const total = vids.length + decksHere.length;
       win.querySelector(".title").textContent = f.name;
       win.querySelector(".finder-title").textContent = f.name;
       win.setAttribute("aria-label", f.name);
@@ -357,12 +434,12 @@
       win.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.view === finderView));
       back.disabled = pos <= 0;
       fwd.disabled = pos >= hist.length - 1;
-      status.textContent = `${vids.length} item${vids.length === 1 ? "" : "s"}`;
+      status.textContent = `${total} item${total === 1 ? "" : "s"}`;
       history.replaceState(null, "", "#" + f.id);
 
       items.className = "finder-items view-" + finderView;
       items.scrollTop = 0;
-      if (!vids.length) {
+      if (!total) {
         items.innerHTML = `<div class="finder-empty">This folder is empty</div>`;
         return;
       }
@@ -377,6 +454,17 @@
           ? `<span class="f-name">${thumbHTML(v)}${esc(v.title)}</span><span class="f-kind">${kindOf(v)}</span>`
           : `<span class="f-thumb">${thumbHTML(v)}</span><span class="f-label">${esc(v.title)}</span>`;
         bindOpen(el, items, () => openVideo(v));
+        items.appendChild(el);
+      });
+      decksHere.forEach((p) => {
+        const el = document.createElement("button");
+        el.className = "f-item deck";
+        el.title = p.title;
+        el.innerHTML = finderView === "list"
+          ? `<span class="f-name">${deckThumbHTML(p)}${esc(p.title)}</span><span class="f-kind">Presentation</span>`
+          : `<span class="f-thumb">${deckThumbHTML(p)}</span><span class="f-label">${esc(p.title)}</span>`;
+        bindOpen(el, items, () => openDeck(p));
+        fillDeckThumb(el, p);
         items.appendChild(el);
       });
     }
@@ -421,6 +509,155 @@
         c.innerHTML = `<div class="player"><iframe src="${src}" title="${esc(v.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`;
       },
     });
+  }
+
+  // Opening a presentation goes straight into presentation mode (full screen while the click still
+  // allows it). Esc drops back to a slide-sorter window; Play presents again from the current slide.
+  function openDeck(p) {
+    const key = "deck:" + (p.pdf || p.slides[0]);
+    const existing = windows.get(key);
+    if (existing) {
+      focus(existing);
+      return present(p, existing._slide || 0, (i) => existing._show(i));
+    }
+    openWindow(key, {
+      title: p.title,
+      width: 920,
+      height: 600,
+      render(c) {
+        c.innerHTML = `
+          <div class="deck">
+            <aside class="deck-rail" aria-label="Slides"></aside>
+            <section class="deck-main">
+              <div class="deck-stage"><img class="deck-slide" alt=""><div class="deck-msg">Loading presentation…</div></div>
+              <div class="deck-bar">
+                <button class="tb-btn" data-act="prev" aria-label="Previous slide">‹</button>
+                <span class="deck-count"></span>
+                <button class="tb-btn" data-act="next" aria-label="Next slide">›</button>
+                <button class="btn deck-play" data-act="play">▶ Play</button>
+              </div>
+            </section>
+          </div>`;
+      },
+    });
+    const win = windows.get(key);
+    const slide = win.querySelector(".deck-slide"), msg = win.querySelector(".deck-msg");
+    const rail = win.querySelector(".deck-rail"), count = win.querySelector(".deck-count");
+    let deck = null;
+    win._slide = 0;
+    win._show = async (i) => {
+      if (!deck) return;
+      const n = (win._slide = Math.max(0, Math.min(deck.count - 1, i)));
+      count.textContent = `${n + 1} / ${deck.count}`;
+      rail.querySelectorAll(".deck-rail-item").forEach((b, j) => b.classList.toggle("active", j === n));
+      rail.children[n]?.scrollIntoView({ block: "nearest" });
+      slide.src = await deck.src(n);
+    };
+    win.querySelector('[data-act="prev"]').onclick = () => win._show(win._slide - 1);
+    win.querySelector('[data-act="next"]').onclick = () => win._show(win._slide + 1);
+    win.querySelector('[data-act="play"]').onclick = () => present(p, win._slide, (i) => win._show(i));
+    loadDeck(p).then((d) => {
+      deck = d;
+      msg.remove();
+      win.style.setProperty("--ar", d.aspect);
+      for (let i = 0; i < d.count; i++) {
+        const b = document.createElement("button");
+        b.className = "deck-rail-item";
+        b.setAttribute("aria-label", `Slide ${i + 1}`);
+        b.innerHTML = `<span>${i + 1}</span><img alt="">`;
+        b.onclick = () => win._show(i);
+        rail.appendChild(b);
+        d.thumb(i).then((url) => (b.querySelector("img").src = url));
+      }
+      win._show(win._slide);
+    }).catch(() => (msg.textContent = "Couldn't open this presentation."));
+    present(p, 0, (i) => win._show(i));
+  }
+
+  // Full-screen slideshow. Arrows/Space/click to move, Esc (or leaving full screen) to exit.
+  function present(p, start = 0, onExit) {
+    const ov = document.createElement("div");
+    ov.className = "present";
+    ov.setAttribute("role", "dialog");
+    ov.setAttribute("aria-label", `${p.title} (presentation)`);
+    ov.innerHTML = `
+      <img class="present-slide" alt="">
+      <div class="present-loading">Loading…</div>
+      <div class="present-hud">
+        <button data-act="prev" aria-label="Previous slide">‹</button>
+        <span class="present-count"></span>
+        <button data-act="next" aria-label="Next slide">›</button>
+        <button data-act="exit" aria-label="Exit presentation">✕</button>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.requestFullscreen?.().catch(() => {}); // falls back to filling the page if full screen isn't allowed
+    const img = ov.querySelector(".present-slide"), counter = ov.querySelector(".present-count");
+    let deck = null, idx = start, closed = false;
+
+    async function go(i) {
+      if (!deck) return;
+      idx = Math.max(0, Math.min(deck.count - 1, i));
+      counter.textContent = `${idx + 1} / ${deck.count}`;
+      const url = await deck.src(idx);
+      if (closed) return;
+      img.classList.remove("in");
+      img.src = url;
+      await img.decode().catch(() => {});
+      img.classList.add("in");
+      if (idx + 1 < deck.count) deck.src(idx + 1); // warm up the next slide
+    }
+    loadDeck(p).then((d) => {
+      deck = d;
+      ov.querySelector(".present-loading").remove();
+      go(idx);
+    }).catch(() => (ov.querySelector(".present-loading").textContent = "Couldn't open this presentation."));
+
+    function exit() {
+      if (closed) return;
+      closed = true;
+      removeEventListener("keydown", onKey, true);
+      document.removeEventListener("fullscreenchange", onFullscreen);
+      if (document.fullscreenElement === ov) document.exitFullscreen().catch(() => {});
+      ov.classList.add("out");
+      setTimeout(() => ov.remove(), 260);
+      onExit?.(idx);
+    }
+    function onKey(e) {
+      const k = e.key;
+      if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(k)) go(idx + 1);
+      else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(k)) go(idx - 1);
+      else if (k === "Home") go(0);
+      else if (k === "End") go((deck?.count || 1) - 1);
+      else if (k === "Escape") exit();
+      else return;
+      e.preventDefault();
+      e.stopImmediatePropagation(); // keep Escape (and arrows) from reaching the window manager behind
+    }
+    function onFullscreen() { if (!document.fullscreenElement) exit(); }
+    addEventListener("keydown", onKey, true);
+    document.addEventListener("fullscreenchange", onFullscreen);
+
+    // Click the left third to go back, anywhere else to go forward; swipe on touch screens.
+    let downX = null;
+    ov.addEventListener("pointerdown", (e) => (downX = e.clientX));
+    ov.addEventListener("pointerup", (e) => {
+      if (e.target.closest(".present-hud") || downX === null) return;
+      const dx = e.clientX - downX;
+      go(idx + (Math.abs(dx) > 50 ? (dx < 0 ? 1 : -1) : e.clientX < innerWidth / 3 ? -1 : 1));
+    });
+    ov.querySelector('[data-act="prev"]').onclick = () => go(idx - 1);
+    ov.querySelector('[data-act="next"]').onclick = () => go(idx + 1);
+    ov.querySelector('[data-act="exit"]').onclick = exit;
+
+    // The control pill shows while the mouse moves and fades after a moment, like Keynote.
+    let idle;
+    const wake = () => {
+      ov.classList.add("hud-on");
+      clearTimeout(idle);
+      idle = setTimeout(() => ov.classList.remove("hud-on"), 2200);
+    };
+    ov.addEventListener("pointermove", wake);
+    wake();
   }
 
   /* ---------- Notes (About / CV) ---------- */

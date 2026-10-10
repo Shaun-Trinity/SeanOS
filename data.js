@@ -32,6 +32,14 @@ window.PORTFOLIO = {
     { id: "passion-projects", name: "Passion Projects", icon: "assets/folders/passion-projects.png" },
   ],
 
+  // Case Studies: presentations. Export a deck from PowerPoint/Keynote as a PDF (File › Export › PDF)
+  // and put it in assets/decks — or export each slide as an image and list them in `slides`.
+  // Optional: `cover` (thumbnail image), `folder` (defaults to "case-studies").
+  presentations: [
+    // { title: "Absa campaign case study", pdf: "assets/decks/absa-campaign.pdf" },
+    // { title: "Heineken launch", slides: ["assets/decks/heineken/1.png", "assets/decks/heineken/2.png"] },
+  ],
+
   // `id` is the YouTube (or TikTok) video id. `short: true` renders a vertical (9:16) thumbnail and player.
   // `folder` is one of the folder ids above.
   videos: [

@@ -13,6 +13,16 @@ A self-hosted, macOS-desktop-style video portfolio. Plain HTML/CSS/JS, no build 
 Everything is in `data.js` — bio, roles, experience, contact details, the folder list, and the video list
 (`id` = YouTube video id, `short: true` for Shorts, `folder` = which folder it appears in).
 
+## Case Studies (presentations)
+Export a deck from PowerPoint or Keynote as a **PDF** (File › Export › PDF), put it in `assets/decks/`,
+and add it to `presentations` in `data.js`:
+
+    { title: "Absa campaign case study", pdf: "assets/decks/absa-campaign.pdf" },
+
+Or export every slide as an image and list them: `slides: ["assets/decks/absa/1.png", ...]`.
+Opening a deck starts presentation mode (arrows / Space / click to move, Esc to leave); the slide
+window has a Play button to present again. PDFs are drawn with PDF.js, loaded from cdnjs only when needed.
+
 ## Wallpaper
 The wallpaper is `assets/wallpaper.webp`. Replace that file to change it; if it's missing, a painted CSS landscape is used.
 
