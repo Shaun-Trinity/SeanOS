@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>SeanOS Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" title="Back to SeanOS">
+      <span class="brand-logo" aria-hidden="true"></span>
+      <span>SeanOS</span><em>Dashboard</em>
+    </a>
+    <div class="status">
+      <span class="site-url"></span>
+      <span class="pill" id="status">Loading…</span>
+    </div>
+    <div class="top-actions">
+      <a class="btn ghost" href="/" target="_blank" rel="noopener">View live ↗</a>
+      <button class="btn primary" id="save" disabled>Save changes</button>
+      <button class="btn ghost" id="logout">Log out</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <main id="sections" aria-live="polite"><p class="loading">Loading your content…</p></main>
+    <nav class="side" aria-label="Sections">
+      <h4>Sections</h4>
+      <ul id="nav"></ul>
+    </nav>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <!-- The built-in content: used to start from before the first save -->
+  <script src="data.js"></script>
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>

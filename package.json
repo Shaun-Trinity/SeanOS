@@ -1,0 +1,15 @@
+{
+  "name": "seanos",
+  "private": true,
+  "type": "module",
+  "description": "SeanOS portfolio: static site + Vercel functions for the owner dashboard",
+  "scripts": {
+    "dev": "node dev-server.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.8.1"
+  }
+}

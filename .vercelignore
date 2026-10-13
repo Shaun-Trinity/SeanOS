@@ -1,0 +1,8 @@
+.data
+.env*
+!.env.example
+dev-server.mjs
+Dockerfile
+docker-compose.yml
+nginx.conf
+.dockerignore

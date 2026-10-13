@@ -1,5 +1,13 @@
-(() => {
-  const P = window.PORTFOLIO;
+(async () => {
+  // Content saved from the dashboard (/api/content), falling back to the built-in data.js
+  // when nothing has been saved yet or the site is served without the API (e.g. a plain static host).
+  const P = await (async () => {
+    try {
+      const r = await fetch("/api/content", { signal: AbortSignal.timeout(3000) });
+      if (r.ok) return { ...window.PORTFOLIO, ...(await r.json()) };
+    } catch {}
+    return window.PORTFOLIO;
+  })();
   const tpl = document.getElementById("tpl-window");
   const windows = new Map(); // key -> element
   let z = 10;
@@ -121,7 +129,8 @@
   }
 
   addEventListener("keydown", (e) => {
-    if (e.key !== "Escape" || !document.getElementById("control-center").hidden) return; // Escape closes Control Center first
+    // Escape closes Control Center, the logo menu or the login screen first.
+    if (e.key !== "Escape" || ["control-center", "logo-menu", "login"].some((id) => !document.getElementById(id).hidden)) return;
     const top =[...windows.entries()].sort((a, b) => b[1].style.zIndex - a[1].style.zIndex)[0];
     if (top) closeWindow(top[0]);
   });
@@ -1003,6 +1012,136 @@
     setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true)
   );
 
+  /* ---------- Logo menu: About, Log In / Dashboard / Log Out, Shut Down ---------- */
+  const logoBtn = document.querySelector(".menu-logo");
+  const logoMenu = document.getElementById("logo-menu");
+  const api = (path, options = {}) =>
+    fetch(path, { ...options, headers: { "content-type": "application/json", "x-seanos": "1", ...options.headers } });
+  async function getSession() {
+    try {
+      const r = await fetch("/api/session", { cache: "no-store" });
+      return r.ok ? await r.json() : null; // null: no API here (e.g. a plain static host)
+    } catch {
+      return null;
+    }
+  }
+
+  async function toggleLogoMenu(open = logoMenu.hidden) {
+    logoMenu.hidden = !open;
+    logoBtn.setAttribute("aria-expanded", open);
+    if (!open) return;
+    const signedIn = !!(await getSession())?.signedIn;
+    logoMenu.querySelector('[data-action="login"]').hidden = signedIn;
+    logoMenu.querySelector('[data-action="dashboard"]').hidden = !signedIn;
+    logoMenu.querySelector('[data-action="logout"]').hidden = !signedIn;
+  }
+  logoBtn.addEventListener("click", () => toggleLogoMenu());
+  logoMenu.addEventListener("click", async (e) => {
+    const action = e.target.closest("[data-action]")?.dataset.action;
+    if (!action) return;
+    toggleLogoMenu(false);
+    if (action === "about") openNotes("about");
+    else if (action === "login") showLogin();
+    else if (action === "dashboard") location.href = "/dashboard";
+    else if (action === "logout") await api("/api/logout", { method: "POST" });
+    else if (action === "shutdown") confirmShutDown();
+  });
+  addEventListener("pointerdown", (e) => {
+    if (!logoMenu.hidden && !logoMenu.contains(e.target) && !logoBtn.contains(e.target)) toggleLogoMenu(false);
+  }, true);
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && !logoMenu.hidden) toggleLogoMenu(false); });
+
+  /* ---------- Login screen ---------- */
+  const loginEl = document.getElementById("login");
+  const loginForm = loginEl.querySelector("form");
+  const loginInput = document.getElementById("login-password");
+  const loginError = loginEl.querySelector(".login-error");
+  loginEl.querySelector(".login-name").textContent = P.name;
+  loginEl.querySelector(".login-avatar").textContent = P.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+
+  async function showLogin() {
+    const session = await getSession();
+    if (session?.signedIn) return void (location.href = "/dashboard");
+    loginError.textContent = session ? "" : "Sign-in only works on the live site (or with npm run dev).";
+    loginEl.hidden = false;
+    loginEl.classList.remove("leaving");
+    loginInput.value = "";
+    loginInput.focus();
+  }
+  function hideLogin() {
+    loginEl.classList.add("leaving");
+    setTimeout(() => (loginEl.hidden = true), 250);
+    if (location.hash === "#login") history.replaceState(null, "", location.pathname);
+  }
+  loginEl.querySelector(".login-cancel").onclick = hideLogin;
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && !loginEl.hidden) hideLogin(); });
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    loginError.textContent = "";
+    loginForm.classList.add("busy");
+    try {
+      const r = await api("/api/login", { method: "POST", body: JSON.stringify({ password: loginInput.value }) });
+      if (r.ok) {
+        loginEl.classList.add("success");
+        return void setTimeout(() => (location.href = "/dashboard"), 350);
+      }
+      loginError.textContent = r.status === 401 ? "Incorrect password." : "Couldn't sign in. Try again.";
+    } catch {
+      loginError.textContent = "Couldn't reach the server.";
+    } finally {
+      loginForm.classList.remove("busy");
+    }
+    loginForm.classList.remove("shake");
+    void loginForm.offsetWidth; // restart the shake animation
+    loginForm.classList.add("shake");
+    loginInput.select();
+  });
+
+  /* ---------- Shut Down ---------- */
+  function confirmShutDown() {
+    const dlg = document.createElement("div");
+    dlg.className = "alert-backdrop";
+    dlg.innerHTML = `
+      <div class="alert" role="alertdialog" aria-modal="true" aria-labelledby="shutdown-q">
+        <div class="alert-icon">${document.querySelector(".logo-seanos").outerHTML}</div>
+        <p id="shutdown-q"><b>Are you sure you want to shut down SeanOS?</b></p>
+        <div class="alert-actions">
+          <button class="alert-btn" data-choice="cancel">Cancel</button>
+          <button class="alert-btn primary" data-choice="ok">Shut Down</button>
+        </div>
+      </div>`;
+    document.body.appendChild(dlg);
+    const close = (ok) => {
+      dlg.remove();
+      removeEventListener("keydown", onKey, true);
+      if (ok) shutDown();
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") close(false), e.stopImmediatePropagation();
+      if (e.key === "Enter") close(true), e.preventDefault();
+    };
+    addEventListener("keydown", onKey, true);
+    dlg.addEventListener("click", (e) => {
+      const choice = e.target.closest("[data-choice]")?.dataset.choice;
+      if (choice) close(choice === "ok");
+    });
+    dlg.querySelector(".primary").focus();
+  }
+
+  const shutdownEl = document.getElementById("shutdown");
+  function shutDown() {
+    [...windows.keys()].forEach(closeWindow);
+    toggleCC(false);
+    setTimeout(() => {
+      shutdownEl.hidden = false;
+      shutdownEl.querySelector(".power-btn").focus();
+    }, 420);
+  }
+  shutdownEl.querySelector(".power-btn").addEventListener("click", () => {
+    shutdownEl.hidden = true;
+    boot(() => {}, true);
+  });
+
   // Deep links: #about, #cv, #contact, or a folder id like #long-form
   function openFromHash() {
     const hash = location.hash.slice(1);
@@ -1011,14 +1150,16 @@
       notes ? (notes.querySelector(`[data-tab="${hash}"]`).click(), focus(notes)) : openNotes(hash);
     } else if (hash === "contact") openMail();
     else if (P.folders.some((f) => f.id === hash)) openFinder(hash);
+    else if (hash === "login") showLogin();
   }
 
   /* ---------- Boot screen (once per browser session) ---------- */
-  function boot(done) {
-    const el = document.getElementById("boot");
+  const bootTemplate = document.getElementById("boot").cloneNode(true); // kept for restarting after Shut Down
+  function boot(done, force = false) {
+    const el = document.getElementById("boot") || document.body.appendChild(bootTemplate.cloneNode(true));
     let seen = false;
     try { seen = sessionStorage.getItem("booted") === "1"; } catch {}
-    if (seen) return el.remove(), done();
+    if (seen && !force) return el.remove(), done();
     try { sessionStorage.setItem("booted", "1"); } catch {}
     el.querySelector(".boot-logo").appendChild(document.querySelector(".logo-seanos").cloneNode(true));
     const total = reduceMotion ? 600 : 2200;

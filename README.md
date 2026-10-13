@@ -23,6 +23,28 @@ Or export every slide as an image and list them: `slides: ["assets/decks/absa/1.
 Opening a deck starts presentation mode (arrows / Space / click to move, Esc to leave); the slide
 window has a Play button to present again. PDFs are drawn with PDF.js, loaded from cdnjs only when needed.
 
+## Dashboard (owner only)
+Click the SeanOS logo → **Log In…** to open `/dashboard`. From there you can add videos (paste a YouTube or
+TikTok link and press **Get**), upload PDF decks, edit your profile, roles, CV, tools, contact links, the
+clock/calendar settings and folder names/icons, then press **Save changes** to publish.
+
+How it works: Vercel serves the site and runs the small functions in `api/`. Content is saved as one JSON
+file in Vercel Blob (the site falls back to `data.js` until the first save); uploads go straight from your
+browser to Vercel Blob. Your password lives only in Vercel's environment variables.
+
+### Try it locally
+1. `cp .env.example .env.local` and set `ADMIN_PASSWORD` and `SESSION_SECRET` (a long random string).
+2. `npm install`, then `npm run dev` and open http://localhost:3000. Local saves go to `.data/` (git-ignored).
+
+### Put it on Vercel (one-time setup)
+1. Sign up at vercel.com (free Hobby plan) with your GitHub account.
+2. **Add New → Project →** import the `SeanOS` repo. Framework preset: **Other**. No build command. Deploy.
+3. In the project: **Storage → Create → Blob**, connect it to the project (this adds `BLOB_READ_WRITE_TOKEN`).
+4. **Settings → Environment Variables**: add `ADMIN_PASSWORD` (a strong, unique password) and
+   `SESSION_SECRET` (`openssl rand -base64 48`). Then **Deployments → Redeploy**.
+5. Open your site, click the logo → **Log In…**, and press **Save changes** once to start managing content
+   from the dashboard. Every push to GitHub redeploys automatically; dashboard saves don't need a redeploy.
+
 ## Wallpaper
 The wallpaper is `assets/wallpaper.webp`. Replace that file to change it; if it's missing, a painted CSS landscape is used.
 
