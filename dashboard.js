@@ -166,12 +166,24 @@ function plainInput(value, set, placeholder, type = "text") {
 
 function folderSelect(value, set, text = "Folder") {
   const sel = h("select", { "aria-label": text },
-    state.folders.map((f) => h("option", { value: f.id, selected: f.id === value }, f.name)));
+    state.folders.map((f) => h("option", { value: f.id, selected: f.id === value }, f.hidden ? `${f.name} (hidden)` : f.name)));
   sel.addEventListener("change", () => {
     set(sel.value);
     changed();
   });
   return sel;
+}
+
+// macOS-style on/off switch.
+function switchBtn(text, on, set) {
+  const btn = h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(on), "aria-label": text });
+  btn.onclick = () => {
+    const next = btn.getAttribute("aria-checked") !== "true";
+    btn.setAttribute("aria-checked", String(next));
+    set(next);
+    changed();
+  };
+  return btn;
 }
 
 function iconBtn(text, icon, onclick, { disabled = false, danger = false } = {}) {
@@ -492,8 +504,34 @@ function renderWidgets() {
   ];
 }
 
+const folderArt = (f) => f.icon
+  ? h("img", { class: "folder-icon", src: f.icon, alt: "" })
+  : h("span", { class: "tile", style: "--c:#1e90ff", html: ICONS.folder });
+const itemsIn = (id) =>
+  state.videos.filter((v) => v.folder === id).length + state.presentations.filter((p) => (p.folder || "case-studies") === id).length;
+
 function renderFolders() {
-  return sec(null, group(...state.folders.map((f) => {
+  const shown = state.folders.map((f) => {
+    const n = itemsIn(f.id);
+    const note = h("small", {});
+    const describe = () => (note.textContent = `${n ? plural(n, "item") : "Empty"}${f.hidden ? " · hidden from your desktop" : ""}`);
+    describe();
+    const toggle = switchBtn(`Show ${f.name} on your desktop`, !f.hidden, (on) => {
+      if (on) delete f.hidden;
+      else f.hidden = true;
+      describe();
+    });
+    return h("label", { class: "row list" }, folderArt(f), h("span", { class: "row-label" }, f.name, note), toggle);
+  });
+  return [
+    sec("Show on desktop", group(...shown),
+      "Switched-off folders disappear from your desktop, Finder and links. You can still add videos and decks to them here."),
+    renderFolderNames(),
+  ];
+}
+
+function renderFolderNames() {
+  return sec("Names and icons", group(...state.folders.map((f) => {
     const icon = h("button", { type: "button", class: "push" }, "Change Icon…");
     icon.onclick = async () => {
       const file = await pickFile("image/png,image/webp,image/jpeg");
@@ -509,7 +547,7 @@ function renderFolders() {
       }
     };
     return h("div", { class: "row list" },
-      f.icon ? h("img", { class: "folder-icon", src: f.icon, alt: "" }) : h("span", { class: "tile", style: "--c:#1e90ff", html: ICONS.folder }),
+      folderArt(f),
       plainInput(f.name, (v) => (f.name = v), "Folder name"),
       icon);
   })), "Rename the folders on your desktop or give them new icons.");
@@ -521,11 +559,11 @@ const SECTIONS = [
   { id: "profile", title: "Profile", render: renderProfile, keywords: "name location bio about log out sign out website",
     desc: () => "Your name, location and the bio in About me." },
   { id: "videos", title: "Videos", icon: ICONS.video, color: "#ff3b30", render: renderVideos, keywords: "youtube tiktok shorts link cover portfolio",
-    count: () => state.videos.length, desc: () => `${plural(state.videos.length, "video")} on your desktop. Paste a YouTube or TikTok link and press Get.` },
+    count: () => state.videos.length, desc: () => `${plural(state.videos.length, "video")}. Paste a YouTube or TikTok link and press Get.` },
   { id: "decks", title: "Case Studies", icon: ICONS.deck, color: "#ff9500", render: renderDecks, keywords: "presentations pdf deck slides upload keynote powerpoint",
     count: () => state.presentations.length, desc: () => "PDF decks that open as presentations. Export from PowerPoint or Keynote as a PDF." },
-  { id: "folders", title: "Folders", icon: ICONS.folder, color: "#1e90ff", render: renderFolders, keywords: "desktop icons rename",
-    desc: () => "The folders on your desktop: their names and icons." },
+  { id: "folders", title: "Folders", icon: ICONS.folder, color: "#1e90ff", render: renderFolders, keywords: "desktop icons rename show hide hidden on off switch",
+    desc: () => "Choose which folders show on your desktop, and give them names and icons." },
   { id: "roles", title: "Roles", icon: ICONS.users, color: "#5856d6", render: renderRoles, keywords: "titles about me",
     desc: () => "The roles listed with ticks in About me." },
   { id: "experience", title: "Experience", icon: ICONS.briefcase, color: "#a2845e", render: renderExperience, keywords: "cv jobs companies work",

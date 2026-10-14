@@ -143,6 +143,9 @@
     <rect x="3" y="12" width="58" height="2" rx="1" fill="#a3d3fa"/>
   </svg>`;
 
+  // Folders switched off in the dashboard ("Show on desktop") are left out everywhere: desktop, Finder and #links.
+  const folders = P.folders.filter((f) => !f.hidden);
+
   // A folder's own artwork when it has one, otherwise the generic drawn folder.
   const folderIcon = (f) => f.icon ? `<img class="folder-img" src="${esc(f.icon)}" alt="" draggable="false">` : folderSVG;
   const videosIn = (folderId) => P.videos.filter((v) => v.folder === folderId);
@@ -245,7 +248,7 @@
     el.addEventListener("keydown", (e) => e.key === "Enter" && (e.preventDefault(), open()));
   }
 
-  P.folders.forEach((f) => {
+  folders.forEach((f) => {
     const el = document.createElement("button");
     el.className = "icon folder";
     el.setAttribute("role", "listitem");
@@ -395,7 +398,7 @@
           <div class="finder">
             <aside class="finder-side">
               <div class="finder-side-head">Favorites</div>
-              ${P.folders.map((f) => `
+              ${folders.map((f) => `
                 <button class="finder-side-item" data-folder="${f.id}">
                   ${folderIcon(f)}<span>${esc(f.name)}</span>
                 </button>`).join("")}
@@ -432,7 +435,7 @@
     let pos = -1;
 
     function show(folderId) {
-      const f = P.folders.find((x) => x.id === folderId) || P.folders[0];
+      const f = folders.find((x) => x.id === folderId) || folders[0];
       const vids = videosIn(f.id), decksHere = presentationsIn(f.id);
       const total = vids.length + decksHere.length;
       win.querySelector(".title").textContent = f.name;
@@ -1149,7 +1152,7 @@
       const notes = windows.get("notes");
       notes ? (notes.querySelector(`[data-tab="${hash}"]`).click(), focus(notes)) : openNotes(hash);
     } else if (hash === "contact") openMail();
-    else if (P.folders.some((f) => f.id === hash)) openFinder(hash);
+    else if (folders.some((f) => f.id === hash)) openFinder(hash);
     else if (hash === "login") showLogin();
   }
 

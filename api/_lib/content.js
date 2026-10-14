@@ -16,7 +16,11 @@ export function cleanContent(input) {
 
   const folders = FOLDER_IDS.map((id) => {
     const f = list(input.folders, 10).find((x) => x?.id === id) || {};
-    return { id, name: str(f.name, 40) || id, ...(url(f.icon) && { icon: url(f.icon) }) };
+    return {
+      id, name: str(f.name, 40) || id,
+      ...(url(f.icon) && { icon: url(f.icon) }),
+      ...(f.hidden === true && { hidden: true }), // switched off: not shown on the desktop
+    };
   });
   const folderIds = new Set(folders.map((f) => f.id));
   const folderOf = (v, fallback) => (folderIds.has(v) ? v : fallback);
