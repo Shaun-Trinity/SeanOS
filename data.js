@@ -18,8 +18,8 @@ window.PORTFOLIO = {
   email: "seansesing@gmail.com",
   phone: "+27683648494",
   linkedin: "https://linkedin.com/in/sean-sesing",
-  // Calendar widget: replace with your personal Calendar.com booking link (e.g. https://calendar.com/your-name).
-  bookingUrl: "https://calendar.com/",
+  // Calendar widget: your booking page, opened when visitors click the calendar.
+  bookingUrl: "https://schedulera.com/seansesing",
   // Clock widget shows the time here, so visitors can see your local time.
   timeZone: "Africa/Johannesburg",
   cityCode: "JHB", // short label on the clock widget
