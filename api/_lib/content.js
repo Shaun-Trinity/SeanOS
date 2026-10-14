@@ -9,19 +9,26 @@ const url = (v, max = 2000) => {
   return s && isUrl(s) ? s : "";
 };
 
-const FOLDER_IDS = ["short-form", "long-form", "case-studies", "passion-projects"];
+// The original folders always exist (new videos and decks default to them); the owner can add more.
+const CORE_FOLDERS = ["short-form", "long-form", "case-studies", "passion-projects"];
+const FOLDER_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/; // also the #link, e.g. #behind-the-scenes
+const MAX_FOLDERS = 20; // dashboard.js uses the same limit
 
 export function cleanContent(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Content must be an object");
 
-  const folders = FOLDER_IDS.map((id) => {
-    const f = list(input.folders, 10).find((x) => x?.id === id) || {};
-    return {
+  // Folders in the owner's order; ids must be unique slugs.
+  const folders = [];
+  for (const f of list(input.folders, MAX_FOLDERS)) {
+    const id = str(f?.id, 40);
+    if (!FOLDER_ID.test(id) || folders.some((x) => x.id === id)) continue;
+    folders.push({
       id, name: str(f.name, 40) || id,
       ...(url(f.icon) && { icon: url(f.icon) }),
       ...(f.hidden === true && { hidden: true }), // switched off: not shown on the desktop
-    };
-  });
+    });
+  }
+  for (const id of CORE_FOLDERS) if (!folders.some((x) => x.id === id)) folders.push({ id, name: id });
   const folderIds = new Set(folders.map((f) => f.id));
   const folderOf = (v, fallback) => (folderIds.has(v) ? v : fallback);
 

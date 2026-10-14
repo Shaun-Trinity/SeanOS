@@ -137,17 +137,13 @@
 
   /* ---------- Desktop folders ---------- */
   const iconsEl = document.getElementById("icons");
-  const folderSVG = `<svg class="folder-svg" viewBox="0 0 64 50" aria-hidden="true">
-    <path d="M3 7a4 4 0 0 1 4-4h15.5a4 4 0 0 1 2.9 1.2L29 8h28a4 4 0 0 1 4 4v4H3z" fill="#4c9fe0"/>
-    <rect x="3" y="12" width="58" height="35" rx="4" fill="#6fb8f2"/>
-    <rect x="3" y="12" width="58" height="2" rx="1" fill="#a3d3fa"/>
-  </svg>`;
 
   // Folders switched off in the dashboard ("Show on desktop") are left out everywhere: desktop, Finder and #links.
   const folders = P.folders.filter((f) => !f.hidden);
 
-  // A folder's own artwork when it has one, otherwise the generic drawn folder.
-  const folderIcon = (f) => f.icon ? `<img class="folder-img" src="${esc(f.icon)}" alt="" draggable="false">` : folderSVG;
+  // A folder's own artwork when it has one, otherwise the standard SeanOS folder.
+  const DEFAULT_FOLDER_ICON = "assets/folders/default.png"; // also in dashboard.js
+  const folderIcon = (f) => `<img class="folder-img" src="${esc(f.icon || DEFAULT_FOLDER_ICON)}" alt="" draggable="false">`;
   const videosIn = (folderId) => P.videos.filter((v) => v.folder === folderId);
   const isTikTok = (v) => v.platform === "tiktok";
   const thumbFor = (v) => v.cover || (isTikTok(v) ? null : `https://i.ytimg.com/vi/${v.id}/${v.short ? "oar2" : "hqdefault"}.jpg`);

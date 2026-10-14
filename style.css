@@ -185,7 +185,6 @@ button.menu-item:focus-visible { text-decoration: underline; text-underline-offs
   display: grid; place-items: center;
   padding: 3px 5px; border-radius: 6px;
 }
-.folder-svg { width: 60px; height: 47px; display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,.3)); }
 .folder-img { width: 64px; height: 64px; display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,.25)); }
 .icon .label {
   font-size: 12px; font-weight: 500; line-height: 1.25; text-align: center;
@@ -530,7 +529,6 @@ th { background: var(--chip); font-weight: 600; }
   display: flex; align-items: center; gap: 8px; width: 100%;
   padding: 5px 8px; border-radius: 6px; font-size: 13px; text-align: left; white-space: nowrap;
 }
-.finder-side-item .folder-svg { width: 18px; height: 14px; filter: none; flex: none; }
 .finder-side-item .folder-img { width: 20px; height: 20px; filter: none; flex: none; }
 .finder-side-item span { overflow: hidden; text-overflow: ellipsis; }
 .finder-side-item:hover { background: var(--chip); }

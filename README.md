@@ -24,9 +24,10 @@ Opening a deck starts presentation mode (arrows / Space / click to move, Esc to 
 window has a Play button to present again. PDFs are drawn with PDF.js, loaded from cdnjs only when needed.
 
 ## Dashboard (owner only)
-Click the SeanOS logo → **Log In…** to open `/dashboard`. From there you can add videos (paste a YouTube or
-TikTok link and press **Get**), upload PDF decks, edit your profile, roles, CV, tools, contact links, the
-clock/calendar settings and folder names/icons, then press **Save changes** to publish.
+Click the SeanOS logo → **Log In…** to open `/dashboard` (laid out like macOS System Settings). From there you
+can add videos (paste a YouTube or TikTok link and press **Get**), upload PDF decks, edit your profile, roles,
+CV, tools, contact links and the clock/calendar settings, and manage folders: add new ones, switch any off
+("Show on desktop"), reorder, rename or change their icons. Press **Save** to publish.
 
 How it works: Vercel serves the site and runs the small functions in `api/`. Content is saved as one JSON
 file in Vercel Blob (the site falls back to `data.js` until the first save); uploads go straight from your

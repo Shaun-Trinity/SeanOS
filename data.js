@@ -24,7 +24,8 @@ window.PORTFOLIO = {
   timeZone: "Africa/Johannesburg",
   cityCode: "JHB", // short label on the clock widget
 
-  // Desktop folders, in display order. `icon` is the folder artwork; each video below names its folder.
+  // Desktop folders, in display order. `icon` is the folder artwork (assets/folders/default.png when left out);
+  // each video below names its folder.
   folders: [
     { id: "short-form", name: "Short-form Videos", icon: "assets/folders/short-form.png" },
     { id: "long-form", name: "Long-form Videos", icon: "assets/folders/long-form.png" },

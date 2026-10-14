@@ -84,7 +84,14 @@ function normalize(c) {
   const base = window.PORTFOLIO || {};
   const out = { ...base, ...c };
   for (const k of ["roles", "languages", "experiences", "videoTools", "otherTools", "videos", "presentations"]) out[k] = Array.isArray(out[k]) ? out[k] : [];
-  out.folders = (base.folders || []).map((f) => ({ ...f, ...(out.folders || []).find((x) => x.id === f.id) }));
+  // Saved folders in their saved order (built-in ones keep data.js's icon unless replaced), then any built-in folder
+  // missing from the saved list.
+  const saved = Array.isArray(out.folders) ? out.folders : [];
+  const builtIn = base.folders || [];
+  out.folders = [
+    ...saved.map((f) => ({ ...builtIn.find((x) => x.id === f.id), ...f })),
+    ...builtIn.filter((f) => !saved.some((x) => x.id === f.id)),
+  ];
   return structuredClone(out);
 }
 
@@ -504,15 +511,22 @@ function renderWidgets() {
   ];
 }
 
-const folderArt = (f) => f.icon
-  ? h("img", { class: "folder-icon", src: f.icon, alt: "" })
-  : h("span", { class: "tile", style: "--c:#1e90ff", html: ICONS.folder });
+// The folder as the desktop shows it: its own artwork, or the standard SeanOS folder.
+const DEFAULT_FOLDER_ICON = "assets/folders/default.png"; // also in app.js
+const folderArt = (f) => h("img", { class: "folder-icon", src: f.icon || DEFAULT_FOLDER_ICON, alt: "" });
 const itemsIn = (id) =>
   state.videos.filter((v) => v.folder === id).length + state.presentations.filter((p) => (p.folder || "case-studies") === id).length;
 
+const MAX_FOLDERS = 20; // same limit as api/_lib/content.js
+const CORE_FOLDERS = ["short-form", "long-form", "case-studies", "passion-projects"]; // can be hidden, not removed
+const SITE_LINKS = ["about", "cv", "contact", "login"]; // the site's own #links, so no folder can take them
+
 function renderFolders() {
+  const names = new Map(); // folder → its name in "Show on desktop", kept in step with renames below
   const shown = state.folders.map((f) => {
     const n = itemsIn(f.id);
+    const name = h("span", {}, f.name || "Untitled Folder");
+    names.set(f, name);
     const note = h("small", {});
     const describe = () => (note.textContent = `${n ? plural(n, "item") : "Empty"}${f.hidden ? " · hidden from your desktop" : ""}`);
     describe();
@@ -521,17 +535,31 @@ function renderFolders() {
       else f.hidden = true;
       describe();
     });
-    return h("label", { class: "row list" }, folderArt(f), h("span", { class: "row-label" }, f.name, note), toggle);
+    return h("label", { class: "row list" }, folderArt(f), h("span", { class: "row-label" }, name, note), toggle);
   });
   return [
     sec("Show on desktop", group(...shown),
       "Switched-off folders disappear from your desktop, Finder and links. You can still add videos and decks to them here."),
-    renderFolderNames(),
+    renderFolderNames(names),
   ];
 }
 
-function renderFolderNames() {
-  return sec("Names and icons", group(...state.folders.map((f) => {
+function renderFolderNames(names) {
+  const move = (i, d) => () => {
+    const arr = state.folders;
+    [arr[i], arr[i + d]] = [arr[i + d], arr[i]];
+    changed();
+    render("folders");
+  };
+  const add = () => {
+    state.folders.push({ id: `new-${Date.now().toString(36)}`, name: "New Folder", _new: true });
+    changed();
+    render("folders");
+    const input = [...$("#page").querySelectorAll('input[aria-label="Folder name"]')].pop();
+    input?.focus();
+    input?.select();
+  };
+  const rows = state.folders.map((f, i) => {
     const icon = h("button", { type: "button", class: "push" }, "Change Icon…");
     icon.onclick = async () => {
       const file = await pickFile("image/png,image/webp,image/jpeg");
@@ -546,11 +574,49 @@ function renderFolderNames() {
         if (e.message !== "Not signed in") toast(e.message, "error");
       }
     };
-    return h("div", { class: "row list" },
+    const n = itemsIn(f.id);
+    const remove = CORE_FOLDERS.includes(f.id)
+      ? h("span", { class: "ibtn-spacer", "aria-hidden": "true" })
+      : iconBtn(n ? "Move or remove its videos and decks first" : "Remove folder", ICONS.remove, () => {
+        if (isUpload(f.icon)) removedUploads.add(f.icon);
+        state.folders.splice(i, 1);
+        changed();
+        render("folders");
+      }, { danger: true, disabled: n > 0 });
+    return h("div", { class: "row list folder-edit" },
       folderArt(f),
-      plainInput(f.name, (v) => (f.name = v), "Folder name"),
-      icon);
-  })), "Rename the folders on your desktop or give them new icons.");
+      plainInput(f.name, (v) => {
+        f.name = v;
+        names.get(f).textContent = v || "Untitled Folder";
+      }, "Folder name"),
+      icon,
+      h("div", { class: "acts" },
+        iconBtn("Move up", ICONS.up, move(i, -1), { disabled: i === 0 }),
+        iconBtn("Move down", ICONS.down, move(i, 1), { disabled: i === state.folders.length - 1 }),
+        remove));
+  });
+  return [
+    sec("Order, names and icons", group(...rows),
+      "Your desktop shows folders in this order. Folders you add can be removed once they're empty."),
+    h("div", { class: "adder" },
+      h("button", { type: "button", class: "push", disabled: state.folders.length >= MAX_FOLDERS, onclick: add }, "Add Folder…")),
+  ];
+}
+
+// A new folder gets its permanent id, which is also its #link, from its name the first time it's saved.
+function settleNewFolders() {
+  const taken = new Set([...SITE_LINKS, ...state.folders.filter((f) => !f._new).map((f) => f.id)]);
+  for (const f of state.folders.filter((x) => x._new)) {
+    f.name = f.name.trim() || "Untitled Folder";
+    const base = f.name.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32).replace(/-+$/, "") || "folder";
+    let id = base;
+    for (let n = 2; taken.has(id); n++) id = `${base}-${n}`;
+    taken.add(id);
+    for (const item of [...state.videos, ...state.presentations]) if (item.folder === f.id) item.folder = id;
+    f.id = id;
+    delete f._new;
+  }
 }
 
 /* ---------- Sections and sidebar ---------- */
@@ -562,8 +628,10 @@ const SECTIONS = [
     count: () => state.videos.length, desc: () => `${plural(state.videos.length, "video")}. Paste a YouTube or TikTok link and press Get.` },
   { id: "decks", title: "Case Studies", icon: ICONS.deck, color: "#ff9500", render: renderDecks, keywords: "presentations pdf deck slides upload keynote powerpoint",
     count: () => state.presentations.length, desc: () => "PDF decks that open as presentations. Export from PowerPoint or Keynote as a PDF." },
-  { id: "folders", title: "Folders", icon: ICONS.folder, color: "#1e90ff", render: renderFolders, keywords: "desktop icons rename show hide hidden on off switch",
-    desc: () => "Choose which folders show on your desktop, and give them names and icons." },
+  { id: "folders", title: "Folders", icon: ICONS.folder, color: "#1e90ff", render: renderFolders,
+    keywords: "desktop icons rename show hide hidden on off switch add new create remove delete order arrange",
+    count: () => state.folders.length,
+    desc: () => "Add folders, choose which show on your desktop, and set their order, names and icons." },
   { id: "roles", title: "Roles", icon: ICONS.users, color: "#5856d6", render: renderRoles, keywords: "titles about me",
     desc: () => "The roles listed with ticks in About me." },
   { id: "experience", title: "Experience", icon: ICONS.briefcase, color: "#a2845e", render: renderExperience, keywords: "cv jobs companies work",
@@ -683,6 +751,7 @@ async function save() {
     go("videos");
     return toast(`Video #${missing.join(", #")} has no video yet. Paste a link and press Get, or remove it.`, "error");
   }
+  settleNewFolders();
   setStatus("saving");
   try {
     const r = await api("/api/content", { method: "PUT", body: serialize(state) });
