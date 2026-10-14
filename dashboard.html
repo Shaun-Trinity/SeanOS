@@ -4,35 +4,64 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>SeanOS Dashboard</title>
+  <title>System Settings – SeanOS</title>
+  <!-- Same light/dark choice as the site's moon button, applied before paint -->
+  <script>try { document.documentElement.dataset.theme = localStorage.getItem("theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); } catch {}</script>
   <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="/" title="Back to SeanOS">
-      <span class="brand-logo" aria-hidden="true"></span>
-      <span>SeanOS</span><em>Dashboard</em>
-    </a>
-    <div class="status">
-      <span class="site-url"></span>
-      <span class="pill" id="status">Loading…</span>
-    </div>
-    <div class="top-actions">
-      <a class="btn ghost" href="/" target="_blank" rel="noopener">View live ↗</a>
-      <button class="btn primary" id="save" disabled>Save changes</button>
-      <button class="btn ghost" id="logout">Log out</button>
+  <!-- Menu bar, as on the SeanOS desktop (laptops and tablets) -->
+  <header id="menubar">
+    <nav class="menu-left" aria-label="Menu bar">
+      <button type="button" class="menu-item menu-logo" data-menu="logo" aria-label="SeanOS menu" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-pop"></button>
+      <span class="menu-item menu-brand">System Settings</span>
+      <button type="button" class="menu-item" data-menu="file" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-pop">File</button>
+      <button type="button" class="menu-item" data-menu="view" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-pop">View</button>
+    </nav>
+    <div class="menu-right">
+      <button type="button" class="menu-item" id="theme-toggle" aria-label="Switch to dark mode" aria-pressed="false">
+        <svg class="i-moon" viewBox="0 0 20 20" aria-hidden="true"><path d="M16.5 12.6A7 7 0 0 1 7.4 3.5a7 7 0 1 0 9.1 9.1z" fill="currentColor"/></svg>
+        <svg class="i-sun" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3.6" fill="currentColor"/><g stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 1.8v2M10 16.2v2M1.8 10h2M16.2 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/></g></svg>
+      </button>
+      <time class="menu-item menu-clock" id="clock"></time>
     </div>
   </header>
+  <div id="menu-pop" role="menu" hidden></div>
 
-  <div class="layout">
-    <main id="sections" aria-live="polite"><p class="loading">Loading your content…</p></main>
-    <nav class="side" aria-label="Sections">
-      <h4>Sections</h4>
-      <ul id="nav"></ul>
-    </nav>
+  <!-- A System Settings window floating on the SeanOS wallpaper -->
+  <div class="win" id="win">
+    <div class="lights">
+      <button type="button" class="light close" id="close" title="Close" aria-label="Close and go back to your site"></button>
+      <button type="button" class="light min" id="minimize" title="Minimize" aria-label="Minimize and go back to your site"></button>
+      <button type="button" class="light zoom" id="zoom" title="Zoom" aria-label="Zoom window"></button>
+    </div>
+    <aside class="sidebar" aria-label="Settings">
+      <h1 class="home-title">Settings</h1>
+      <label class="search">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m13 13 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <input type="search" id="search" placeholder="Search" aria-label="Search settings" autocomplete="off">
+      </label>
+      <nav id="nav" aria-label="Sections"></nav>
+    </aside>
+
+    <header class="toolbar" id="toolbar">
+      <div class="arrows">
+        <button type="button" class="arrow" id="back" aria-label="Back" disabled><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button type="button" class="arrow" id="forward" aria-label="Forward" disabled><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <button type="button" class="home-back" id="home-back" aria-label="Back to Settings"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <h2 class="page-title" id="page-title">Settings</h2>
+      <div class="tools">
+        <span class="badge" id="status">Loading…</span>
+        <a class="push view-site" href="/" target="_blank" rel="noopener">View Site ↗</a>
+        <button type="button" class="push primary" id="save" disabled>Save</button>
+      </div>
+    </header>
+
+    <main class="page" id="page" aria-live="polite"><p class="loading">Loading your content…</p></main>
   </div>
 
-  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="toasts" aria-live="polite"></div>
 
   <!-- The built-in content: used to start from before the first save -->
   <script src="data.js"></script>

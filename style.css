@@ -678,8 +678,14 @@ th { background: var(--chip); font-weight: 600; }
 @media (max-width: 640px) {
   #menubar { padding: 0 4px; }
   .menu-item { padding: 0 6px; }
-  #widgets { top: auto; bottom: 92px; left: 8px; right: 8px; grid-template-columns: repeat(2, 158px); justify-content: center; }
-  #icons { direction: ltr; grid-auto-flow: row; grid-template-columns: repeat(auto-fill, 88px); grid-template-rows: none; grid-auto-rows: 110px; left: 8px; right: 8px; overflow-y: auto; }
+  /* Phones: widgets on top, folders in a row underneath (like the iPhone home screen), lined up with the widgets. */
+  #widgets { top: 14px; left: 8px; right: 8px; grid-template-columns: repeat(2, 158px); justify-content: center; }
+  #icons {
+    top: calc(14px + 158px + 14px); left: max(8px, calc(50% - 165px)); right: max(8px, calc(50% - 165px));
+    direction: ltr; grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 110px;
+    align-content: start; overflow-y: auto;
+  }
+  #icons .icon .label { max-width: 100%; }
   .finder { flex-direction: column; }
   .deck-rail { display: none; }
   .finder-side { width: auto; display: flex; gap: 2px; padding: 6px; border-right: 0; border-bottom: 1px solid var(--win-border); overflow-x: auto; }
